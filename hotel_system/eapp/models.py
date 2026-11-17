@@ -220,31 +220,57 @@ if __name__ == '__main__':
             ))
 
             # 1. Create 4 standard hotel room types
-            rt1 = RoomType(name='Standard', base_price=500000, description='Phòng tiêu chuẩn đầy đủ tiện nghi cơ bản (22m²)')
-            rt2 = RoomType(name='Superior', base_price=700000, description='Phòng nâng cấp có cửa sổ lớn thoáng mát (30m²)')
-            rt3 = RoomType(name='Deluxe', base_price=1000000, description='Phòng cao cấp tầng cao, tầm nhìn đẹp (38m²)')
-            rt4 = RoomType(name='Family Room', base_price=1300000, description='Phòng gia đình rộng rãi bố trí 2 giường lớn (48m²)')
+            rt1 = RoomType(
+                name='Standard',
+                base_price=500000,
+                description='Phòng tiêu chuẩn đầy đủ tiện nghi cơ bản (22m²)',
+                image='/static/images/default-room.png'
+            )
+            rt2 = RoomType(
+                name='Superior',
+                base_price=700000,
+                description='Phòng nâng cấp có cửa sổ lớn thoáng mát (30m²)',
+                image='/static/images/default-room.png'
+            )
+            rt3 = RoomType(
+                name='Deluxe',
+                base_price=1000000,
+                description='Phòng cao cấp tầng cao, tầm nhìn đẹp (38m²)',
+                image='/static/images/default-room.png'
+            )
+            rt4 = RoomType(
+                name='Family Room',
+                base_price=1300000,
+                description='Phòng gia đình rộng rãi bố trí 2 giường lớn (48m²)',
+                image='/static/images/default-room.png'
+            )
             db.session.add_all([rt1, rt2, rt3, rt4])
             db.session.commit()
 
-            # 2. Create 16 rooms across 4 floors (4 rooms per floor)
+            # 2. Create 16 rooms across 4 floors
             rooms = []
             for i in range(1, 5):
-                rooms.append(Room(room_number=f'10{i}', room_type_id=rt1.id))
-                rooms.append(Room(room_number=f'20{i}', room_type_id=rt2.id))
-                rooms.append(Room(room_number=f'30{i}', room_type_id=rt3.id))
-                rooms.append(Room(room_number=f'40{i}', room_type_id=rt4.id))
+                rooms.append(Room(room_number=str(100 + i), room_type_id=rt1.id, image=rt1.image))
+                rooms.append(Room(room_number=str(200 + i), room_type_id=rt2.id, image=rt2.image))
+                rooms.append(Room(room_number=str(300 + i), room_type_id=rt3.id, image=rt3.image))
+                rooms.append(Room(room_number=str(400 + i), room_type_id=rt4.id, image=rt4.image))
             db.session.add_all(rooms)
 
-            # 3. Create 6 sample accounts (1 Manager, 2 Staffs, 3 Customers)
+            # 3. Create 6 sample accounts (Password: 123456)
             pw = hashlib.md5('123456'.encode('utf-8')).hexdigest()
 
-            u_mgr = User(full_name='Tran Vo Thi Thu Uyen', identity_card='079303000001', phone='0901234561', email='manager@hotel.vn', address='Ho Chi Minh City')
-            u_stf1 = User(full_name='Nguyen Van Le Tan', identity_card='079303000002', phone='0901234562', email='staff1@hotel.vn', address='Ho Chi Minh City')
-            u_stf2 = User(full_name='Pham Thi Thu Ngan', identity_card='079303000003', phone='0901234563', email='staff2@hotel.vn', address='Ho Chi Minh City')
-            u_cus1 = User(full_name='Le Minh Khach', identity_card='079303000004', phone='0901234564', email='customer1@gmail.com', address='Hanoi')
-            u_cus2 = User(full_name='Tran Thi Mai', identity_card='079303000005', phone='0901234565', email='customer2@gmail.com', address='Da Nang')
-            u_for = User(full_name='Johnathan Smith', identity_card='P12345678', phone='0901234566', email='john.smith@gmail.com', address='New York, USA')
+            u_mgr = User(full_name='Tran Vo Thi Thu Uyen', identity_card='079303000001',
+                         phone='0901234561', email='manager@hotel.vn', address='Ho Chi Minh City')
+            u_stf1 = User(full_name='Nguyen Van A', identity_card='079303000002',
+                          phone='0901234562', email='staff1@hotel.vn', address='Ho Chi Minh City')
+            u_stf2 = User(full_name='Pham Thi B', identity_card='079303000003',
+                          phone='0901234563', email='staff2@hotel.vn', address='Ho Chi Minh City')
+            u_cus1 = User(full_name='Le Minh C', identity_card='079303000004',
+                          phone='0901234564', email='customer1@gmail.com', address='Hanoi')
+            u_cus2 = User(full_name='Tran Thi D', identity_card='079303000005',
+                          phone='0901234565', email='customer2@gmail.com', address='Da Nang')
+            u_for = User(full_name='Johnathan Smith', identity_card='P12345678',
+                         phone='0901234566', email='john.smith@gmail.com', address='New York, USA')
 
             db.session.add_all([u_mgr, u_stf1, u_stf2, u_cus1, u_cus2, u_for])
             db.session.commit()
@@ -265,12 +291,7 @@ if __name__ == '__main__':
                 Account(username='foreign_guest', password=pw, role=AccountRole.CUSTOMER, user_id=u_for.id)
             ])
             db.session.commit()
-            print("Successfully initialized 15 tables, 4 standard room types, 16 rooms, and 6 accounts!")
-
-
-
-
-
+            print("Successfully initialized 15 tables and seed data!")
 
 
 
