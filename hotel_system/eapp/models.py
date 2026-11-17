@@ -178,6 +178,31 @@ class StayDetail(BaseModel):
     booking_id = Column(Integer, ForeignKey('booking.id'), nullable=True)
     customer_id = Column(Integer, ForeignKey('customer.user_id'), nullable=False)
 
+# 8. Invoices:
+
+class Invoice(BaseModel):
+    __tablename__ = 'invoice'
+    payment_date = Column(DateTime, default=datetime.now)
+    total_room_amount = Column(Float, nullable=False)
+    deposit_deducted = Column(Float, default=0.0)
+    final_amount = Column(Float, nullable=False)
+    payment_method = Column(String(50), nullable=False)
+    rental_id = Column(Integer, ForeignKey('rental.id'), unique=True, nullable=False)
+    staff_id = Column(Integer, ForeignKey('staff.user_id'), nullable=False)
+
+    details = relationship('InvoiceDetail', backref='invoice', lazy=True)
+
+class InvoiceDetail(BaseModel):
+    __tablename__ = 'invoice_detail'
+    invoice_id = Column(Integer, ForeignKey('invoice.id'), nullable=False)
+    room_id = Column(Integer, ForeignKey('room.id'), nullable=False)
+    stay_days = Column(Integer, nullable=False)
+    applied_price = Column(Float, nullable=False)
+    extra_guest_rate = Column(Float, default=0.0)
+    guest_factor = Column(Float, default=1.0)
+    room_total = Column(Float, nullable=False)
+
+    room = relationship('Room', lazy=True)
 
 
 
