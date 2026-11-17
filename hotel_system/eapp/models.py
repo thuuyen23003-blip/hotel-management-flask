@@ -114,3 +114,25 @@ class Room(BaseModel):
     def __str__(self):
         return f"Room {self.room_number}"
 
+# 5. Regulations:
+
+class Regulation(BaseModel):
+    __tablename__ = 'regulation'
+    max_guests = Column(Integer, nullable=False)
+    extra_guest_rate = Column(Float, nullable=False)
+    foreign_guest_factor = Column(Float, nullable=False)
+    max_hold_days = Column(Integer, nullable=False)
+    deposit_rate = Column(Float, nullable=False)
+
+
+
+
+
+
+
+
+
+
+
+
+
