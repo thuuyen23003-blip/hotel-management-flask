@@ -91,5 +91,26 @@ class Manager(db.Model):
     user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
     appointed_date = Column(Date, default=date.today, nullable=False)
 
+# 4. Rooms:
 
+class RoomType(BaseModel):
+    __tablename__ = 'room_type'
+    name = Column(String(50), unique=True, nullable=False)
+    base_price = Column(Float, nullable=False)
+    description = Column(String(255), nullable=True)
+    image = Column(String(255), default='/static/images/default-room.png')
+
+    rooms = relationship('Room', backref='room_type', lazy=True)
+
+    def __str__(self):
+        return self.name
+
+class Room(BaseModel):
+    __tablename__ = 'room'
+    room_number = Column(String(10), unique=True, nullable=False)
+    status = Column(Enum(RoomStatus), default=RoomStatus.AVAILABLE, nullable=False)
+    room_type_id = Column(Integer, ForeignKey('room_type.id'), nullable=False)
+
+    def __str__(self):
+        return f"Room {self.room_number}"
 
