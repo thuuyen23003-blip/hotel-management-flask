@@ -109,6 +109,7 @@ class Room(BaseModel):
     __tablename__ = 'room'
     room_number = Column(String(10), unique=True, nullable=False)
     status = Column(Enum(RoomStatus), default=RoomStatus.AVAILABLE, nullable=False)
+    image = Column(String(255), default='/static/images/default-room.png')
     room_type_id = Column(Integer, ForeignKey('room_type.id'), nullable=False)
 
     def __str__(self):
@@ -204,6 +205,67 @@ class InvoiceDetail(BaseModel):
 
     room = relationship('Room', lazy=True)
 
+# 9. Seed data:
+
+if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+        if not Regulation.query.first():
+            db.session.add(Regulation(
+                max_guests=3,
+                extra_guest_rate=0.25,
+                foreign_guest_factor=1.5,
+                max_hold_days=28,
+                deposit_rate=0.20
+            ))
+
+            # 1. Create 4 standard hotel room types
+            rt1 = RoomType(name='Standard', base_price=500000, description='Phòng tiêu chuẩn đầy đủ tiện nghi cơ bản (22m²)')
+            rt2 = RoomType(name='Superior', base_price=700000, description='Phòng nâng cấp có cửa sổ lớn thoáng mát (30m²)')
+            rt3 = RoomType(name='Deluxe', base_price=1000000, description='Phòng cao cấp tầng cao, tầm nhìn đẹp (38m²)')
+            rt4 = RoomType(name='Family Room', base_price=1300000, description='Phòng gia đình rộng rãi bố trí 2 giường lớn (48m²)')
+            db.session.add_all([rt1, rt2, rt3, rt4])
+            db.session.commit()
+
+            # 2. Create 16 rooms across 4 floors (4 rooms per floor)
+            rooms = []
+            for i in range(1, 5):
+                rooms.append(Room(room_number=f'10{i}', room_type_id=rt1.id))
+                rooms.append(Room(room_number=f'20{i}', room_type_id=rt2.id))
+                rooms.append(Room(room_number=f'30{i}', room_type_id=rt3.id))
+                rooms.append(Room(room_number=f'40{i}', room_type_id=rt4.id))
+            db.session.add_all(rooms)
+
+            # 3. Create 6 sample accounts (1 Manager, 2 Staffs, 3 Customers)
+            pw = hashlib.md5('123456'.encode('utf-8')).hexdigest()
+
+            u_mgr = User(full_name='Tran Vo Thi Thu Uyen', identity_card='079303000001', phone='0901234561', email='manager@hotel.vn', address='Ho Chi Minh City')
+            u_stf1 = User(full_name='Nguyen Van Le Tan', identity_card='079303000002', phone='0901234562', email='staff1@hotel.vn', address='Ho Chi Minh City')
+            u_stf2 = User(full_name='Pham Thi Thu Ngan', identity_card='079303000003', phone='0901234563', email='staff2@hotel.vn', address='Ho Chi Minh City')
+            u_cus1 = User(full_name='Le Minh Khach', identity_card='079303000004', phone='0901234564', email='customer1@gmail.com', address='Hanoi')
+            u_cus2 = User(full_name='Tran Thi Mai', identity_card='079303000005', phone='0901234565', email='customer2@gmail.com', address='Da Nang')
+            u_for = User(full_name='Johnathan Smith', identity_card='P12345678', phone='0901234566', email='john.smith@gmail.com', address='New York, USA')
+
+            db.session.add_all([u_mgr, u_stf1, u_stf2, u_cus1, u_cus2, u_for])
+            db.session.commit()
+
+            db.session.add_all([
+                Manager(user_id=u_mgr.id),
+                Staff(user_id=u_stf1.id, position='Morning Receptionist'),
+                Staff(user_id=u_stf2.id, position='Evening Receptionist'),
+                Customer(user_id=u_cus1.id, customer_type=CustomerType.DOMESTIC),
+                Customer(user_id=u_cus2.id, customer_type=CustomerType.DOMESTIC),
+                Customer(user_id=u_for.id, customer_type=CustomerType.FOREIGN),
+
+                Account(username='manager', password=pw, role=AccountRole.MANAGER, user_id=u_mgr.id),
+                Account(username='staff1', password=pw, role=AccountRole.STAFF, user_id=u_stf1.id),
+                Account(username='staff2', password=pw, role=AccountRole.STAFF, user_id=u_stf2.id),
+                Account(username='customer1', password=pw, role=AccountRole.CUSTOMER, user_id=u_cus1.id),
+                Account(username='customer2', password=pw, role=AccountRole.CUSTOMER, user_id=u_cus2.id),
+                Account(username='foreign_guest', password=pw, role=AccountRole.CUSTOMER, user_id=u_for.id)
+            ])
+            db.session.commit()
+            print("Successfully initialized 15 tables, 4 standard room types, 16 rooms, and 6 accounts!")
 
 
 
