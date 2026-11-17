@@ -148,6 +148,35 @@ class BookingDetail(BaseModel):
 
     room = relationship('Room', lazy=True)
 
+# 7. Rentals:
+
+class Rental(BaseModel):
+    __tablename__ = 'rental'
+    created_date = Column(DateTime, default=datetime.now)
+    checkin_date = Column(DateTime, nullable=False)
+    expected_checkout = Column(DateTime, nullable=False)
+    deposit_deducted = Column(Float, default=0.0)
+    status = Column(Enum(RentalStatus), default=RentalStatus.ACTIVE)
+    booking_id = Column(Integer, ForeignKey('booking.id'), nullable=True)
+    staff_id = Column(Integer, ForeignKey('staff.user_id'), nullable=False)
+
+    rental_details = relationship('RentalDetail', backref='rental', lazy=True)
+    stay_details = relationship('StayDetail', backref='rental', lazy=True)
+    invoice = relationship('Invoice', backref='rental', uselist=False, lazy=True)
+
+class RentalDetail(BaseModel):
+    __tablename__ = 'rental_detail'
+    rental_id = Column(Integer, ForeignKey('rental.id'), nullable=False)
+    room_id = Column(Integer, ForeignKey('room.id'), nullable=False)
+    actual_checkout = Column(DateTime, nullable=True)
+
+    room = relationship('Room', lazy=True)
+
+class StayDetail(BaseModel):
+    __tablename__ = 'stay_detail'
+    rental_id = Column(Integer, ForeignKey('rental.id'), nullable=True)
+    booking_id = Column(Integer, ForeignKey('booking.id'), nullable=True)
+    customer_id = Column(Integer, ForeignKey('customer.user_id'), nullable=False)
 
 
 
