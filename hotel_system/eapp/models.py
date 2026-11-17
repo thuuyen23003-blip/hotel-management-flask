@@ -124,7 +124,29 @@ class Regulation(BaseModel):
     max_hold_days = Column(Integer, nullable=False)
     deposit_rate = Column(Float, nullable=False)
 
+# 6. Bookings:
 
+class Booking(BaseModel):
+    __tablename__ = 'booking'
+    booking_date = Column(DateTime, default=datetime.now)
+    expected_checkin = Column(DateTime, nullable=False)
+    expected_checkout = Column(DateTime, nullable=False)
+    total_estimated = Column(Float, nullable=False)
+    deposit_amount = Column(Float, nullable=False)
+    status = Column(Enum(BookingStatus), default=BookingStatus.PENDING_CHECKIN)
+    customer_id = Column(Integer, ForeignKey('customer.user_id'), nullable=False)
+
+    details = relationship('BookingDetail', backref='booking', lazy=True)
+    rental = relationship('Rental', backref='booking', uselist=False, lazy=True)
+
+class BookingDetail(BaseModel):
+    __tablename__ = 'booking_detail'
+    booking_id = Column(Integer, ForeignKey('booking.id'), nullable=False)
+    room_id = Column(Integer, ForeignKey('room.id'), nullable=False)
+    price_at_booking = Column(Float, nullable=False)
+    room_deposit = Column(Float, nullable=False)
+
+    room = relationship('Room', lazy=True)
 
 
 
