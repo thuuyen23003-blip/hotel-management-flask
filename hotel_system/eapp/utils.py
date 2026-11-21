@@ -1,12 +1,20 @@
-def count_cart(cart):
-    total_amount, total_quantity = 0, 0
+import requests
+from flask_mail import Message
+from eapp import app, mail
 
+
+def count_booking_cart(cart):
+    total_rooms, total_amount = 0, 0
     if cart:
-        for c in cart.values():
-            total_quantity += c['quantity']
-            total_amount +=c['quantity'] * c['price']
+        for item in cart.values():
+            total_rooms += 1
+            total_amount += item['price'] * item.get('days', 1)
 
     return {
-        'total_amount': total_amount,
-        'total_quantity': total_quantity
+        'total_rooms': total_rooms,
+        'total_amount': total_amount
     }
+
+
+def calculate_deposit(total_amount, deposit_rate):
+    return round(total_amount * deposit_rate, 0)
