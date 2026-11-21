@@ -50,6 +50,17 @@ def count_rooms(kw=None, room_type_id=None, status=None):
         query = query.filter(Room.status == status)
     return query.count()
 
+# add account authentication and user loader
+def authenticate(username, password):
+    password = hashlib.md5(password.strip().encode('utf-8')).hexdigest()
+    return Account.query.filter(
+        Account.username.__eq__(username.strip()),
+        Account.password.__eq__(password),
+        Account.active == True
+    ).first()
 
+
+def get_account_by_id(account_id):
+    return Account.query.get(account_id)
 
 
