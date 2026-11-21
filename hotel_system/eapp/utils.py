@@ -25,6 +25,20 @@ def validate_max_hold_days(booking_date, expected_checkin, max_hold_days):
     return 0 <= wait_days <= max_hold_days
 
 
+def calculate_room_checkout(base_price, stay_days, guest_count, has_foreign_guest, regulation):
+    actual_days = max(1, stay_days)
+    base_total = base_price * actual_days
+
+    surcharge_rate = regulation.extra_guest_rate if guest_count >= regulation.max_guests else 0.0
+    guest_factor = regulation.foreign_guest_factor if has_foreign_guest else 1.0
+
+    room_total = base_total * (1 + surcharge_rate) * guest_factor
+    return {
+        'stay_days': actual_days,
+        'extra_guest_rate': surcharge_rate,
+        'guest_factor': guest_factor,
+        'room_total': round(room_total, 0)
+    }
 
 
 
