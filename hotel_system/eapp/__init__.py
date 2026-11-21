@@ -18,3 +18,13 @@ app.config['MAIL_USERNAME'] = 'thuuyen23003@gmail.com'
 app.config['MAIL_PASSWORD'] = 'pqifykrsvtmwuyga'
 app.config['MAIL_DEFAULT_SENDER'] = ('Hotel Management', 'thuuyen23003@gmail.com')
 
+# Telegram Bot Configuration
+app.config['TELEGRAM_BOT_TOKEN'] = '9262396677:AAEheB1LIMkdFs_dnCBo9ZTTWmCWUo6przw'
+app.config['TELEGRAM_CHAT_ID'] = '9242656093'
+
+db = SQLAlchemy(app=app)
+login = LoginManager(app=app)
+mail = Mail(app=app)
+
+# Cloudinary Configuration
+cloudinary.config(cloud_name='isbvimga', api_key='513263947619764', api_secret='T34iggHkQ6h1vHwb0J3zVL4hQbc')
