@@ -19,6 +19,11 @@ def summarize_selected_rooms(selected_rooms):
 def calculate_deposit(total_amount, deposit_rate):
     return round(total_amount * deposit_rate, 0)
 
+# add 28-day maximum booking hold rule validation
+def validate_max_hold_days(booking_date, expected_checkin, max_hold_days):
+    wait_days = (expected_checkin.date() - booking_date.date()).days
+    return 0 <= wait_days <= max_hold_days
+
 
 
 
