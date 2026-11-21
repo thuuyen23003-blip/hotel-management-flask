@@ -64,3 +64,43 @@ def get_account_by_id(account_id):
     return Account.query.get(account_id)
 
 
+# add customer registration with conditional avatar upload
+
+def register_customer(full_name, identity_card, phone, username, password,
+                      email=None, address=None, customer_type=CustomerType.DOMESTIC, avatar=None):
+    hashed_password = hashlib.md5(password.strip().encode('utf-8')).hexdigest()
+
+    u = User(
+        full_name=full_name.strip(),
+        identity_card=identity_card.strip(),
+        phone=phone.strip(),
+        email=email.strip() if email else None,
+        address=address.strip() if address else None
+    )
+    db.session.add(u)
+    db.session.flush()
+
+    if avatar:
+        res = cloudinary.uploader.upload(
+            avatar,
+            public_id="hotel_avatars/user_" + str(u.id),
+            overwrite=True
+        )
+        u.avatar = res.get('secure_url')
+
+    cus = Customer(user_id=u.id, customer_type=customer_type)
+    acc = Account(
+        username=username.strip(),
+        password=hashed_password,
+        role=AccountRole.CUSTOMER,
+        user_id=u.id
+    )
+    db.session.add_all([cus, acc])
+    db.session.commit()
+    return u
+
+
+
+
+
+
