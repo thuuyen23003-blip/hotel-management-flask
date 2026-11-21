@@ -16,7 +16,7 @@ app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
 app.config['MAIL_USERNAME'] = 'thuuyen23003@gmail.com'
 app.config['MAIL_PASSWORD'] = 'pqifykrsvtmwuyga'
-app.config['MAIL_DEFAULT_SENDER'] = ('Hotel Management', 'thuuyen23003@gmail.com')
+app.config['MAIL_DEFAULT_SENDER'] = ('Aurelia Hotel & Suites', 'thuuyen23003@gmail.com')
 
 # Telegram Bot Configuration
 app.config['TELEGRAM_BOT_TOKEN'] = '9262396677:AAEheB1LIMkdFs_dnCBo9ZTTWmCWUo6przw'

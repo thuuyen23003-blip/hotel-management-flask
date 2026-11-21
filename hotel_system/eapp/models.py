@@ -39,7 +39,7 @@ class CustomerType(PyEnum):
 
 # 2. Users:
 
-class User(BaseModel, UserMixin):
+class User(BaseModel):
     __tablename__ = 'user'
     full_name = Column(String(100), nullable=False)
     identity_card = Column(String(20), unique=True, nullable=False)
@@ -69,6 +69,10 @@ class Account(BaseModel, UserMixin):
     @property
     def user_role(self):
         return self.role
+
+    @property
+    def is_active(self):
+        return self.active
 
 class Customer(db.Model):
     __tablename__ = 'customer'
@@ -113,7 +117,7 @@ class Room(BaseModel):
     room_type_id = Column(Integer, ForeignKey('room_type.id'), nullable=False)
 
     def __str__(self):
-        return f"Room {self.room_number}"
+        return "Room " + str(self.room_number)
 
 # 5. Regulations:
 
@@ -138,6 +142,7 @@ class Booking(BaseModel):
     customer_id = Column(Integer, ForeignKey('customer.user_id'), nullable=False)
 
     details = relationship('BookingDetail', backref='booking', lazy=True)
+    stay_details = relationship('StayDetail', backref='booking', lazy=True)
     rental = relationship('Rental', backref='booking', uselist=False, lazy=True)
 
 class BookingDetail(BaseModel):
@@ -177,7 +182,10 @@ class StayDetail(BaseModel):
     __tablename__ = 'stay_detail'
     rental_id = Column(Integer, ForeignKey('rental.id'), nullable=True)
     booking_id = Column(Integer, ForeignKey('booking.id'), nullable=True)
+    room_id = Column(Integer, ForeignKey('room.id'), nullable=True)
     customer_id = Column(Integer, ForeignKey('customer.user_id'), nullable=False)
+
+    room = relationship('Room', lazy=True)
 
 # 8. Invoices:
 
@@ -219,30 +227,30 @@ if __name__ == '__main__':
                 deposit_rate=0.20
             ))
 
-            # 1. Create 4 standard hotel room types
+            # 1. Create 4 standard hotel room types for Aurelia Hotel & Suites
             rt1 = RoomType(
                 name='Standard',
                 base_price=500000,
                 description='Phòng tiêu chuẩn đầy đủ tiện nghi cơ bản (22m²)',
-                image='/static/images/default-room.png'
+                image='/static/images/standard-room.png'
             )
             rt2 = RoomType(
                 name='Superior',
                 base_price=700000,
                 description='Phòng nâng cấp có cửa sổ lớn thoáng mát (30m²)',
-                image='/static/images/default-room.png'
+                image='/static/images/superior-room.png'
             )
             rt3 = RoomType(
                 name='Deluxe',
                 base_price=1000000,
                 description='Phòng cao cấp tầng cao, tầm nhìn đẹp (38m²)',
-                image='/static/images/default-room.png'
+                image='/static/images/deluxe-room.png'
             )
             rt4 = RoomType(
                 name='Family Room',
                 base_price=1300000,
                 description='Phòng gia đình rộng rãi bố trí 2 giường lớn (48m²)',
-                image='/static/images/default-room.png'
+                image='/static/images/family-room.png'
             )
             db.session.add_all([rt1, rt2, rt3, rt4])
             db.session.commit()
@@ -260,11 +268,11 @@ if __name__ == '__main__':
             pw = hashlib.md5('123456'.encode('utf-8')).hexdigest()
 
             u_mgr = User(full_name='Tran Vo Thi Thu Uyen', identity_card='079303000001',
-                         phone='0901234561', email='manager@hotel.vn', address='Ho Chi Minh City')
+                         phone='0901234561', email='manager@aureliahotel.vn', address='Ho Chi Minh City')
             u_stf1 = User(full_name='Nguyen Van A', identity_card='079303000002',
-                          phone='0901234562', email='staff1@hotel.vn', address='Ho Chi Minh City')
+                          phone='0901234562', email='staff1@aureliahotel.vn', address='Ho Chi Minh City')
             u_stf2 = User(full_name='Pham Thi B', identity_card='079303000003',
-                          phone='0901234563', email='staff2@hotel.vn', address='Ho Chi Minh City')
+                          phone='0901234563', email='staff2@aureliahotel.vn', address='Ho Chi Minh City')
             u_cus1 = User(full_name='Le Minh C', identity_card='079303000004',
                           phone='0901234564', email='customer1@gmail.com', address='Hanoi')
             u_cus2 = User(full_name='Tran Thi D', identity_card='079303000005',
@@ -291,7 +299,4 @@ if __name__ == '__main__':
                 Account(username='foreign_guest', password=pw, role=AccountRole.CUSTOMER, user_id=u_for.id)
             ])
             db.session.commit()
-            print("Successfully initialized 15 tables and seed data!")
-
-
-
+            print("Successfully initialized 15 tables and seed data for Aurelia Hotel & Suites!")
