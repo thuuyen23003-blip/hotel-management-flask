@@ -39,7 +39,6 @@ def load_rooms(kw=None, room_type_id=None, status=None, page=1):
     start = (page - 1) * page_size
     return query.slice(start, start + page_size).all()
 
-
 def count_rooms(kw=None, room_type_id=None, status=None):
     query = Room.query
     if kw:
@@ -59,10 +58,8 @@ def authenticate(username, password):
         Account.active == True
     ).first()
 
-
 def get_account_by_id(account_id):
     return Account.query.get(account_id)
-
 
 # add customer registration with conditional avatar upload
 
@@ -267,4 +264,28 @@ def checkout_and_create_invoice(rental_id, staff_user_id, payment_method='Tiền
 
     db.session.commit()
     return invoice
+
+# add monthly revenue and room occupancy stats queries
+def count_rooms_by_type():
+    return (db.session.query(RoomType.id, RoomType.name, func.count(Room.id))
+            .join(Room, Room.room_type_id == RoomType.id, isouter=True)
+            .group_by(RoomType.id).all())
+
+def stats_revenue_by_room_type(month, year):
+    return (db.session.query(RoomType.id, RoomType.name, func.sum(InvoiceDetail.room_total).label('revenue'))
+            .join(Room, Room.room_type_id == RoomType.id)
+            .join(InvoiceDetail, InvoiceDetail.room_id == Room.id)
+            .join(Invoice, Invoice.id == InvoiceDetail.invoice_id)
+            .filter(func.extract('month', Invoice.payment_date) == month,
+                    func.extract('year', Invoice.payment_date) == year)
+            .group_by(RoomType.id).all())
+
+def stats_occupancy_by_room(month, year):
+    return (db.session.query(Room.room_number, func.sum(InvoiceDetail.stay_days).label('total_days'))
+            .join(InvoiceDetail, InvoiceDetail.room_id == Room.id, isouter=True)
+            .join(Invoice, Invoice.id == InvoiceDetail.invoice_id, isouter=True)
+            .filter((Invoice.id == None) |
+                    ((func.extract('month', Invoice.payment_date) == month) &
+                     (func.extract('year', Invoice.payment_date) == year)))
+            .group_by(Room.id).order_by(Room.room_number).all())
 
