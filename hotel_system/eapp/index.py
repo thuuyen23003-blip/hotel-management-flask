@@ -84,7 +84,7 @@ def register_process():
 @app.route('/booking-cart')
 def booking_cart():
     reg = dao.get_current_regulation()
-    return render_template('cart.html', regulation=reg)
+    return render_template('booking_list.html', regulation=reg)
 
 @app.route('/api/selected-rooms', methods=['POST'])
 def add_selected_room():
