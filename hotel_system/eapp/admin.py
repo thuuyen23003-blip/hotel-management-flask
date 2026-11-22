@@ -45,3 +45,38 @@ class RegulationView(ManagerAuthenticated):
         'max_hold_days': IntegerField,
         'deposit_rate': FloatField
     }
+
+# add monthly stats view and register admin views
+class BaseManagerAuthenticated(BaseView):
+    def is_accessible(self) -> bool:
+        return current_user.is_authenticated and current_user.user_role == AccountRole.MANAGER
+
+
+class StatsView(BaseManagerAuthenticated):
+    @expose('/')
+    def index(self):
+        month = int(request.args.get('month', datetime.now().month))
+        year = int(request.args.get('year', datetime.now().year))
+
+        revenue_stats = dao.stats_revenue_by_room_type(month=month, year=year)
+        occupancy_stats = dao.stats_occupancy_by_room(month=month, year=year)
+
+        return self.render('admin/stats.html',
+                           revenue_stats=revenue_stats,
+                           occupancy_stats=occupancy_stats,
+                           selected_month=month,
+                           selected_year=year)
+
+
+class LogoutView(BaseManagerAuthenticated):
+    @expose('/')
+    def index(self):
+        logout_user()
+        return redirect('/admin')
+
+
+admin.add_view(RoomTypeView(RoomType, db.session, name='Loại phòng'))
+admin.add_view(RoomView(Room, db.session, name='Danh sách phòng'))
+admin.add_view(RegulationView(Regulation, db.session, name='Quy định (UC01)'))
+admin.add_view(StatsView(name='Thống kê báo cáo (UC04)'))
+admin.add_view(LogoutView(name='Đăng xuất'))
