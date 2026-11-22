@@ -1,42 +1,33 @@
-from flask_admin import Admin, BaseView, expose
-from eapp import app, db
+from datetime import datetime
+from flask import redirect, request
+from flask_admin import Admin, BaseView, expose, AdminIndexView
 from flask_admin.contrib.sqla import ModelView
-from eapp.models import Category, Product, UserRoleEnum
 from flask_login import logout_user, current_user
-from flask import redirect
+from wtforms.fields.numeric import FloatField, IntegerField
+from eapp import app, db, dao
+from eapp.models import AccountRole, RoomType, Room, Regulation
 
-admin = Admin(app=app, name='eCommerce Admin')
+# add admin index and room management views
+class MyAdminIndex(AdminIndexView):
+    @expose('/')
+    def index(self):
+        return self.render('admin/index.html', stats=dao.count_rooms_by_type())
 
-class AdminAuthenticated(ModelView):
+admin = Admin(app=app, name='Aurelia Hotel Admin', index_view=MyAdminIndex())
+
+class ManagerAuthenticated(ModelView):
     def is_accessible(self) -> bool:
-        return current_user.is_authenticated and current_user.user_role == UserRoleEnum.ADMIN
+        return current_user.is_authenticated and current_user.user_role == AccountRole.MANAGER
 
-class ProductView(AdminAuthenticated):
-    column_list = ['id', 'name', 'price', 'active']
-    can_export = True
+class RoomTypeView(ManagerAuthenticated):
+    column_list = ['id', 'name', 'base_price', 'description']
     column_searchable_list = ['name']
-    column_filters = ['id','name','price']
     edit_modal = True
-    column_editable_list = ['name']
+    form_overrides = {'base_price': FloatField}
+
+class RoomView(ManagerAuthenticated):
+    column_list = ['id', 'room_number', 'room_type', 'status', 'image']
+    column_searchable_list = ['room_number']
+    column_filters = ['status', 'room_type_id']
+    edit_modal = True
     can_view_details = True
-    details_modal = True
-
-class BaseAdminAuthenticated(BaseView):
-    def is_accessible(self) -> bool:
-        return current_user.is_authenticated and current_user.user_role == UserRoleEnum.ADMIN
-
-class StatsView(BaseAdminAuthenticated):
-    @expose('/')
-    def index(self):
-        return self.render('admin/stats.html')
-
-class LogoutView(BaseAdminAuthenticated):
-    @expose('/')
-    def index(self):
-        logout_user()
-        return redirect('/admin')
-
-admin.add_view(AdminAuthenticated(Category, db.session))
-admin.add_view(ProductView(Product, db.session))
-admin.add_view(StatsView(name='Thống kê'))
-admin.add_view(LogoutView(name='Đăng xuất'))

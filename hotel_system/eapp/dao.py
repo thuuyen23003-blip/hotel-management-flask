@@ -288,4 +288,3 @@ def stats_occupancy_by_room(month, year):
                     ((func.extract('month', Invoice.payment_date) == month) &
                      (func.extract('year', Invoice.payment_date) == year)))
             .group_by(Room.id).order_by(Room.room_number).all())
-
