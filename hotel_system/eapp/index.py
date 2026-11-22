@@ -141,6 +141,64 @@ def my_bookings():
     bookings = Booking.query.filter_by(customer_id=current_user.user_id).order_by(Booking.id.desc()).all()
     return render_template('my_bookings.html', bookings=bookings)
 
+# add receptionist checkin checkout routes and context processor
+@app.route('/reception')
+@login_required
+def reception_dashboard():
+    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
+        return redirect('/')
+    all_rooms = dao.load_rooms(page=1)
+    pending_bookings = Booking.query.filter_by(status='PENDING_CHECKIN').all()
+    active_rentals = Rental.query.filter_by(status='ACTIVE').all()
+    return render_template('reception.html',
+                           rooms=all_rooms,
+                           pending_bookings=pending_bookings,
+                           active_rentals=active_rentals)
 
+@app.route('/reception/checkin', methods=['POST'])
+@login_required
+def reception_checkin():
+    try:
+        room_ids = request.form.getlist('room_ids')
+        checkout_str = request.form.get('expected_checkout')
+        expected_checkout = datetime.strptime(checkout_str, '%Y-%m-%d')
+        guest_ids = request.form.getlist('guest_ids')
+        booking_id = request.form.get('booking_id') or None
 
+        dao.create_rental_checkin(
+            staff_user_id=current_user.user_id,
+            room_ids=room_ids,
+            expected_checkout=expected_checkout,
+            guest_customer_ids=guest_ids,
+            booking_id=booking_id
+        )
+        return redirect('/reception')
+    except Exception as ex:
+        return "Lỗi lập phiếu thuê: " + str(ex), 400
 
+@app.route('/reception/checkout/<int:rental_id>', methods=['POST'])
+@login_required
+def reception_checkout(rental_id):
+    payment_method = request.form.get('payment_method', 'Tiền mặt')
+    invoice = dao.checkout_and_create_invoice(
+        rental_id=rental_id,
+        staff_user_id=current_user.user_id,
+        payment_method=payment_method
+    )
+    return render_template('invoice.html', invoice=invoice)
+
+@app.context_processor
+def common_responses():
+    return {
+        'room_types': dao.load_room_types(),
+        'selected_summary': utils.summarize_selected_rooms(session.get('selected_rooms'))
+    }
+
+@login.user_loader
+def get_user(account_id):
+    return dao.get_account_by_id(account_id)
+
+if __name__ == '__main__':
+    with app.app_context():
+        from eapp import admin
+        app.run(debug=True)
