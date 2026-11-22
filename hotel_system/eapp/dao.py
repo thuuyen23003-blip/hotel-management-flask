@@ -159,7 +159,21 @@ def create_online_booking(customer_user_id, selected_rooms, expected_checkin, ex
 
     return booking
 
+# add auto cancel expired bookings
+def auto_cancel_expired_bookings():
+    now = datetime.now()
+    expired_list = Booking.query.filter(
+        Booking.status == BookingStatus.PENDING_CHECKIN,
+        Booking.expected_checkin < now
+    ).all()
 
+    for b in expired_list:
+        b.status = BookingStatus.EXPIRED_CANCELLED
+        for d in b.details:
+            if d.room.status == RoomStatus.BOOKED:
+                d.room.status = RoomStatus.AVAILABLE
+    if expired_list:
+        db.session.commit()
 
 
 
