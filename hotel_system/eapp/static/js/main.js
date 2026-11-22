@@ -1,68 +1,68 @@
-function addToCart(id, name, price){
-//    alert(name);
-    fetch('/api/carts',{
-        method: 'post',
+function addSelectedRoom(id, roomNumber, roomType, basePrice) {
+    fetch('/api/selected-rooms', {
+        method: 'POST',
         body: JSON.stringify({
             'id': id,
-            'name': name,
-            'price': price
+            'room_number': roomNumber,
+            'room_type': roomType,
+            'base_price': basePrice
         }),
         headers: {
             'Content-Type': 'application/json'
         }
-    }).then(data => data.json()).then(data => {
-        let carts = document.getElementsByClassName('cart-counter');
-        for (let c of carts)
-            c.innerText = data.total_quantity;
-    });
-}
-
-function updateCart(productId, obj) {
-    fetch(`/api/carts/${productId}`,{
-        method: 'patch',
-        body: JSON.stringify({
-            'quantity': obj.value
-        }),
-        headers: {
-            'Content-Type': 'application/json'
+    }).then(res => res.json()).then(data => {
+        let counters = document.getElementsByClassName('room-counter');
+        for (let c of counters) {
+            c.innerText = data.total_rooms;
         }
-    }).then(data => data.json()).then(data => {
-        let carts = document.getElementsByClassName('cart-counter');
-        for (let c of carts)
-            c.innerText = data.total_quantity;
-
-        let cartAmounts = document.getElementsByClassName('cart-amount');
-        for (let c of cartAmounts)
-            c.innerText = data.total_amount.toLocaleString('en');
+        alert('Đã thêm Phòng ' + roomNumber + ' vào danh sách đặt!');
     });
 }
 
-function deleteCart(productId) {
-    if(confirm("Bạn có chắc chắn xóa không?") == true){
-        fetch(`/api/carts/${productId}`,{
-            method: 'delete',
-
-        }).then(data => data.json()).then(data => {
-            let carts = document.getElementsByClassName('cart-counter');
-            for (let c of carts)
-                c.innerText = data.total_quantity;
-
-            let cartAmounts = document.getElementsByClassName('cart-amount');
-            for (let c of cartAmounts)
-                c.innerText = data.total_amount.toLocaleString('en');
-
-            let e = document.getElementsById(`cart${productId}`);
-            e.style.display = 'none';
+function removeSelectedRoom(roomId) {
+    if (confirm('Bạn chắc chắn muốn bỏ chọn phòng này không?')) {
+        fetch('/api/selected-rooms/' + roomId, {
+            method: 'DELETE'
+        }).then(res => res.json()).then(data => {
+            let counters = document.getElementsByClassName('room-counter');
+            for (let c of counters) {
+                c.innerText = data.total_rooms;
+            }
+            let row = document.getElementById('room-row-' + roomId);
+            if (row) {
+                row.style.display = 'none';
+            }
+            location.reload();
         });
     }
 }
 
-function pay() {
-    if(confirm("Bạn chắc chắn thanh toán?") == true) {
-        fetch('/api/pay', {
-            'method': 'post'
-        }).then(res => {
+function confirmBooking() {
+    let checkin = document.getElementById('expected_checkin').value;
+    let checkout = document.getElementById('expected_checkout').value;
 
-        })
+    if (!checkin || !checkout) {
+        alert('Vui lòng chọn đầy đủ ngày nhận phòng và ngày trả phòng!');
+        return;
+    }
+
+    if (confirm('Xác nhận đặt phòng và thanh toán tiền cọc 20%?')) {
+        fetch('/api/confirm-booking', {
+            method: 'POST',
+            body: JSON.stringify({
+                'expected_checkin': checkin,
+                'expected_checkout': checkout
+            }),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        }).then(res => res.json()).then(data => {
+            if (data.status === 200) {
+                alert('Đặt phòng thành công! Mã đơn #' + data.booking_id + '. Email & thông báo đã được gửi.');
+                location.href = '/my-bookings';
+            } else {
+                alert('Lỗi: ' + data.err_msg);
+            }
+        });
     }
 }
