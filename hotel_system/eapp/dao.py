@@ -175,5 +175,41 @@ def auto_cancel_expired_bookings():
     if expired_list:
         db.session.commit()
 
+# add receptionist checkin rental creation
+def create_rental_checkin(staff_user_id, room_ids, expected_checkout, guest_customer_ids, booking_id=None):
+    reg = get_current_regulation()
+    if len(guest_customer_ids) > reg.max_guests * len(room_ids):
+        raise ValueError("Vượt quá quy định tối đa " + str(reg.max_guests) + " khách/phòng!")
+
+    deposit_deducted = 0.0
+    if booking_id:
+        booking = Booking.query.get(int(booking_id))
+        if booking and booking.status == BookingStatus.PENDING_CHECKIN:
+            booking.status = BookingStatus.CHECKED_IN
+            deposit_deducted = booking.deposit_amount
+
+    rental = Rental(
+        checkin_date=datetime.now(),
+        expected_checkout=expected_checkout,
+        deposit_deducted=deposit_deducted,
+        status=RentalStatus.ACTIVE,
+        booking_id=booking_id,
+        staff_id=staff_user_id
+    )
+    db.session.add(rental)
+    db.session.flush()
+
+    for rid in room_ids:
+        room_obj = Room.query.get(int(rid))
+        if room_obj:
+            room_obj.status = RoomStatus.OCCUPIED
+            db.session.add(RentalDetail(rental_id=rental.id, room_id=room_obj.id))
+
+    for cid in guest_customer_ids:
+        db.session.add(StayDetail(rental_id=rental.id, customer_id=int(cid)))
+
+    db.session.commit()
+    return rental
+
 
 
