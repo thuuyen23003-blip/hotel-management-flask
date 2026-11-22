@@ -211,5 +211,60 @@ def create_rental_checkin(staff_user_id, room_ids, expected_checkout, guest_cust
     db.session.commit()
     return rental
 
+# add checkout invoice calculation
+def checkout_and_create_invoice(rental_id, staff_user_id, payment_method='Tiền mặt'):
+    rental = Rental.query.get(int(rental_id))
+    reg = get_current_regulation()
+    now = datetime.now()
 
+    guest_count = len(rental.stay_details)
+    has_foreign = False
+    for s in rental.stay_details:
+        if s.customer.customer_type == CustomerType.FOREIGN:
+            has_foreign = True
+            break
+
+    invoice = Invoice(
+        payment_date=now,
+        total_room_amount=0,
+        deposit_deducted=rental.deposit_deducted,
+        final_amount=0,
+        payment_method=payment_method,
+        rental_id=rental.id,
+        staff_id=staff_user_id
+    )
+    db.session.add(invoice)
+    db.session.flush()
+
+    total_room_amount = 0
+    for rd in rental.rental_details:
+        rd.actual_checkout = now
+        rd.room.status = RoomStatus.CLEANING
+
+        stay_days = max(1, (now.date() - rental.checkin_date.date()).days)
+        calc = calculate_room_checkout(
+            base_price=rd.room.room_type.base_price,
+            stay_days=stay_days,
+            guest_count=guest_count,
+            has_foreign_guest=has_foreign,
+            regulation=reg
+        )
+        total_room_amount += calc['room_total']
+
+        db.session.add(InvoiceDetail(
+            invoice_id=invoice.id,
+            room_id=rd.room.id,
+            stay_days=calc['stay_days'],
+            applied_price=rd.room.room_type.base_price,
+            extra_guest_rate=calc['extra_guest_rate'],
+            guest_factor=calc['guest_factor'],
+            room_total=calc['room_total']
+        ))
+
+    invoice.total_room_amount = total_room_amount
+    invoice.final_amount = max(0, total_room_amount - rental.deposit_deducted)
+    rental.status = RentalStatus.PAID
+
+    db.session.commit()
+    return invoice
 
