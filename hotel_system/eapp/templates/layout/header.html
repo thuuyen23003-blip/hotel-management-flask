@@ -1,48 +1,64 @@
-<nav class="navbar navbar-expand-sm bg-dark navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="#">E-commerce Website: Thu Uyên</a>
+<nav class="navbar navbar-expand-sm bg-dark navbar-dark shadow-sm">
+    <div class="container">
+        <a class="navbar-brand fw-bold" href="/">Aurelia Hotel & Suites</a>
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
             <span class="navbar-toggler-icon"></span>
         </button>
+
         <div class="collapse navbar-collapse" id="collapsibleNavbar">
             <ul class="navbar-nav me-auto">
                 <li class="nav-item">
-                    <a class="nav-link" href="#">Trang chủ</a>
+                    <a class="nav-link" href="/">Trang chủ</a>
                 </li>
-                {% for c in categories %}
+                {% for rt in room_types %}
                 <li class="nav-item">
-                    <a class="nav-link" href="/?category_id={{c.id}}">{{c.name}}</a>
+                    <a class="nav-link" href="/?room_type_id={{ rt.id }}">{{ rt.name }}</a>
                 </li>
                 {% endfor %}
 
-                {% if current_user.is_authenticated %}
                 <li class="nav-item">
-                    <a class="nav-link text-danger" href="/">
-                        <img src="{{ current_user.avatar }}" width="30" class="rounded-circle"/>
-                        Chào {{ current_user.username }}!
+                    <a class="nav-link" href="/booking-cart">
+                        Phòng đang chọn <span class="badge bg-danger room-counter">{{ selected_summary.total_rooms }}</span>
                     </a>
                 </li>
+
+                {% if current_user.is_authenticated %}
+                    {% if current_user.role.name == 'CUSTOMER' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="/my-bookings">Đơn đặt của tôi</a>
+                    </li>
+                    {% endif %}
+                    {% if current_user.role.name in ['STAFF', 'MANAGER'] %}
+                    <li class="nav-item">
+                        <a class="nav-link text-warning fw-semibold" href="/reception">Quầy Lễ tân</a>
+                    </li>
+                    {% endif %}
+                    {% if current_user.role.name == 'MANAGER' %}
+                    <li class="nav-item">
+                        <a class="nav-link text-info fw-semibold" href="/admin">Quản trị hệ thống</a>
+                    </li>
+                    {% endif %}
+                {% endif %}
+            </ul>
+
+            <ul class="navbar-nav">
+                {% if current_user.is_authenticated %}
+                <li class="nav-item d-flex align-items-center me-2">
+                    <img src="{{ current_user.user.avatar }}" alt="Avatar" class="rounded-circle me-2" style="width: 32px; height: 32px; object-fit: cover;">
+                    <span class="navbar-text text-white">Xin chào, <strong>{{ current_user.user.full_name }}</strong></span>
+                </li>
                 <li class="nav-item">
-                    <a class="nav-link text-success" href="/logout">Đăng xuất</a>
+                    <a class="btn btn-outline-light btn-sm ms-2" href="/logout">Đăng xuất</a>
                 </li>
                 {% else %}
                 <li class="nav-item">
-                    <a class="nav-link text-danger" href="/login">&#128582; Đăng nhập</a>
+                    <a class="nav-link" href="/login">Đăng nhập</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link text-success" href="/register">&#128587; Đăng ký</a>
+                    <a class="btn btn-primary btn-sm ms-2" href="/register">Đăng ký</a>
                 </li>
                 {% endif %}
-
-                <li class="nav-item">
-                    <a class="nav-link text-danger" href="/cart">🛒 <span class="badge bg-danger cart-counter">{{ carts.total_quantity }}</span></a>
-                </li>
-
             </ul>
-            <form class="d-flex" method="get" action="/">
-                <input class="form-control me-2" type="text" placeholder="Tìm sản phẩm..." name="kw"/>
-                <button class="btn btn-primary" type="submit">Tìm</button>
-            </form>
         </div>
     </div>
 </nav>
