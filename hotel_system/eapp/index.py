@@ -80,7 +80,66 @@ def register_process():
     except Exception as ex:
         return render_template('register.html', err_msg='Lỗi đăng ký: ' + str(ex))
 
+# add online booking cart and confirmation routes
+@app.route('/booking-cart')
+def booking_cart():
+    reg = dao.get_current_regulation()
+    return render_template('cart.html', regulation=reg)
 
+@app.route('/api/selected-rooms', methods=['POST'])
+def add_selected_room():
+    selected = session.get('selected_rooms', {})
+    room_id = str(request.json.get('id'))
+
+    if room_id not in selected:
+        selected[room_id] = {
+            "id": room_id,
+            "room_number": request.json.get('room_number'),
+            "room_type": request.json.get('room_type'),
+            "base_price": float(request.json.get('base_price'))
+        }
+
+    session['selected_rooms'] = selected
+    return jsonify(utils.summarize_selected_rooms(selected))
+
+@app.route('/api/selected-rooms/<room_id>', methods=['DELETE'])
+def remove_selected_room(room_id):
+    selected = session.get('selected_rooms', {})
+    if room_id in selected:
+        del selected[room_id]
+
+    session['selected_rooms'] = selected
+    return jsonify(utils.summarize_selected_rooms(selected))
+
+@app.route('/api/confirm-booking', methods=['POST'])
+@login_required
+def confirm_booking():
+    selected = session.get('selected_rooms')
+    if not selected:
+        return jsonify({'status': 400, 'err_msg': 'Chưa chọn phòng nào để đặt!'})
+
+    try:
+        checkin_str = request.json.get('expected_checkin')
+        checkout_str = request.json.get('expected_checkout')
+        expected_checkin = datetime.strptime(checkin_str, '%Y-%m-%d')
+        expected_checkout = datetime.strptime(checkout_str, '%Y-%m-%d')
+
+        booking = dao.create_online_booking(
+            customer_user_id=current_user.user_id,
+            selected_rooms=selected,
+            expected_checkin=expected_checkin,
+            expected_checkout=expected_checkout
+        )
+        del session['selected_rooms']
+        return jsonify({'status': 200, 'booking_id': booking.id})
+    except Exception as ex:
+        return jsonify({'status': 400, 'err_msg': str(ex)})
+
+@app.route('/my-bookings')
+@login_required
+def my_bookings():
+    bookings = Booking.query.filter_by(customer_id=current_user.user_id).order_by(Booking.id.desc()).all()
+    return render_template('my_bookings.html', bookings=bookings)
 
 
 
