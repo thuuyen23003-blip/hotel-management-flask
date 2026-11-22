@@ -31,3 +31,17 @@ class RoomView(ManagerAuthenticated):
     column_filters = ['status', 'room_type_id']
     edit_modal = True
     can_view_details = True
+
+# add regulation management view
+class RegulationView(ManagerAuthenticated):
+    can_create = False
+    can_delete = False
+    edit_modal = True
+    column_list = ['max_guests', 'extra_guest_rate', 'foreign_guest_factor', 'max_hold_days', 'deposit_rate']
+    form_overrides = {
+        'max_guests': IntegerField,
+        'extra_guest_rate': FloatField,
+        'foreign_guest_factor': FloatField,
+        'max_hold_days': IntegerField,
+        'deposit_rate': FloatField
+    }
