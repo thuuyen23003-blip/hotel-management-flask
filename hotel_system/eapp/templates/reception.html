@@ -1,0 +1,35 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}Quầy Lễ tân - Aurelia Hotel & Suites{% endblock %}
+
+{% block content %}
+<h3 class="mb-4">QUẢN LÝ QUẦY LỄ TÂN</h3>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-header bg-dark text-white">
+        <h5 class="mb-0">Sơ đồ trạng thái phòng hiện tại</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            {% for r in rooms %}
+            <div class="col-md-2 col-sm-4 col-6 mb-3">
+                <div class="card text-center h-100 border">
+                    <div class="card-body p-2">
+                        <h6 class="fw-bold mb-1">Phòng {{ r.room_number }}</h6>
+                        <p class="text-muted small mb-1">{{ r.room_type.name }}</p>
+                        {% if r.status.name == 'AVAILABLE' %}
+                        <span class="badge bg-success">Trống</span>
+                        {% elif r.status.name == 'BOOKED' %}
+                        <span class="badge bg-warning text-dark">Đã đặt</span>
+                        {% elif r.status.name == 'OCCUPIED' %}
+                        <span class="badge bg-danger">Đang thuê</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Đang dọn</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
