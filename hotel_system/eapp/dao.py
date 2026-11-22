@@ -99,6 +99,65 @@ def register_customer(full_name, identity_card, phone, username, password,
     db.session.commit()
     return u
 
+# add online booking creation and notification alerts
+def create_online_booking(customer_user_id, selected_rooms, expected_checkin, expected_checkout, guest_list=None):
+    reg = get_current_regulation()
+    now = datetime.now()
+
+    if not validate_max_hold_days(now, expected_checkin, reg.max_hold_days):
+        raise ValueError("Ngày nhận phòng không được vượt quá " + str(reg.max_hold_days) + " ngày kể từ ngày đặt!")
+
+    stay_days = max(1, (expected_checkout.date() - expected_checkin.date()).days)
+    total_estimated = 0
+    for r in selected_rooms.values():
+        total_estimated += r['base_price'] * stay_days
+
+    deposit_amount = calculate_deposit(total_estimated, reg.deposit_rate)
+
+    booking = Booking(
+        booking_date=now,
+        expected_checkin=expected_checkin,
+        expected_checkout=expected_checkout,
+        total_estimated=total_estimated,
+        deposit_amount=deposit_amount,
+        status=BookingStatus.PENDING_CHECKIN,
+        customer_id=customer_user_id
+    )
+    db.session.add(booking)
+    db.session.flush()
+
+    for r in selected_rooms.values():
+        room_obj = Room.query.get(int(r['id']))
+        if room_obj and room_obj.status == RoomStatus.AVAILABLE:
+            room_obj.status = RoomStatus.BOOKED
+            room_total = r['base_price'] * stay_days
+            detail = BookingDetail(
+                booking_id=booking.id,
+                room_id=room_obj.id,
+                price_at_booking=r['base_price'],
+                room_deposit=calculate_deposit(room_total, reg.deposit_rate)
+            )
+            db.session.add(detail)
+
+    db.session.add(StayDetail(booking_id=booking.id, customer_id=customer_user_id))
+    if guest_list:
+        for g in guest_list:
+            db.session.add(StayDetail(booking_id=booking.id, customer_id=g['customer_id']))
+
+    db.session.commit()
+
+    user = User.query.get(customer_user_id)
+    if user:
+        notifier = NotificationService()
+        notifier.send_email_confirmation(user.email, booking)
+
+        tele_msg = "ĐƠN ĐẶT PHÒNG MỚI #" + str(booking.id) + "\n"
+        tele_msg += "Khách hàng: " + user.full_name + " (" + user.phone + ")\n"
+        tele_msg += "Nhận phòng: " + expected_checkin.strftime('%d/%m/%Y') + "\n"
+        tele_msg += "Tiền cọc (20%): " + "{:,.0f}".format(deposit_amount) + " VNĐ"
+        notifier.send_telegram_notification(tele_msg)
+
+    return booking
 
 
 
