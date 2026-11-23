@@ -1,59 +1,166 @@
 {% extends 'layout/base.html' %}
 
 {% block content %}
-<div class="container mt-4 mb-5" style="max-width: 850px;">
-    <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
-        <a href="/reception" class="btn btn-outline-secondary btn-sm">&larr; Quay lại Quầy Lễ Tân</a>
-        <div class="btn-group">
-            <a href="/invoice/{{ invoice.id }}?copy=customer"
-               class="btn btn-sm {{ 'btn-primary' if copy_type != 'manager' else 'btn-outline-primary' }}">
-                Liên 1: Bản giao Khách hàng
-            </a>
-            {% if current_user.role.name == 'MANAGER' %}
-            <a href="/invoice/{{ invoice.id }}?copy=manager"
-               class="btn btn-sm {{ 'btn-dark' if copy_type == 'manager' else 'btn-outline-dark' }}">
-                Liên 2: Bản lưu Quản lý
-            </a>
-            {% endif %}
+    <div class="container mt-4 mb-5" style="max-width: 850px;">
+        <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
+            <a href="/reception" class="btn btn-outline-secondary btn-sm">&larr; Quay lại Quầy Lễ Tân</a>
+            <div class="btn-group">
+                <a href="/invoice/{{ invoice.id }}?copy=customer"
+                   class="btn btn-sm {{ 'btn-primary' if copy_type != 'manager' else 'btn-outline-primary' }}">
+                    Liên 1: Bản giao Khách hàng
+                </a>
+                {% if current_user.role.name == 'MANAGER' %}
+                    <a href="/invoice/{{ invoice.id }}?copy=manager"
+                       class="btn btn-sm {{ 'btn-dark' if copy_type == 'manager' else 'btn-outline-dark' }}">
+                        Liên 2: Bản lưu Quản lý
+                    </a>
+                {% endif %}
+            </div>
+            <button onclick="window.print()" class="btn btn-success btn-sm">In Hóa Đơn</button>
         </div>
-        <button onclick="window.print()" class="btn btn-success btn-sm">In Hóa Đơn</button>
+
+        <div class="card shadow-sm border-dark">
+            <div class="card-body p-4">
+                <div class="row border-bottom pb-3 mb-3 align-items-center">
+                    <div class="col-7">
+                        <h4 class="fw-bold mb-1">AURELIA HOTEL &amp; SUITES</h4>
+                        <div class="small text-muted">Hệ thống Quản lý Khách sạn &amp; Lưu trú</div>
+                        <div class="small text-muted">Mã hóa đơn: <strong>#{{ invoice.id }}</strong></div>
+                    </div>
+                    <div class="col-5 text-end">
+                        <h5 class="fw-bold text-uppercase mb-1">HÓA ĐƠN THANH TOÁN</h5>
+                        {% if copy_type == 'manager' %}
+                            <span class="badge bg-dark">LIÊN 2: BẢN LƯU QUẢN LÝ (CHI TIẾT)</span>
+                        {% else %}
+                            <span class="badge bg-primary">LIÊN 1: BẢN GIAO KHÁCH HÀNG</span>
+                        {% endif %}
+                        <div class="small text-muted mt-1">Ngày
+                            lập: {{ invoice.payment_date.strftime('%d/%m/%Y %H:%M') }}</div>
+                    </div>
+                </div>
+
+                <div class="row mb-3 small">
+                    <div class="col-md-6">
+                        <div><strong>Mã phiếu thuê:</strong> #{{ invoice.rental_id }}</div>
+                        <div><strong>Nhận phòng thực
+                            tế:</strong> {{ invoice.rental.checkin_date.strftime('%d/%m/%Y %H:%M') }}</div>
+                        <div><strong>Phương thức thanh toán:</strong> {{ invoice.payment_method }}</div>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        {% if invoice.rental.booking and invoice.rental.booking.customer %}
+                            <div><strong>Khách đặt phòng:</strong> {{ invoice.rental.booking.customer.user.full_name }}
+                            </div>
+                            <div><strong>Điện thoại:</strong> {{ invoice.rental.booking.customer.user.phone }}</div>
+                        {% elif invoice.rental.stay_details %}
+                            <div><strong>Khách đại
+                                diện:</strong> {{ invoice.rental.stay_details.customer.user.full_name }}</div>
+                            <div><strong>Điện thoại:</strong> {{ invoice.rental.stay_details.customer.user.phone }}
+                            </div>
+                        {% endif %}
+                        {% if copy_type == 'manager' %}
+                            <div class="text-danger"><strong>Nhân viên thu
+                                ngân:</strong> {{ invoice.staff.user.full_name }} (ID: #{{ invoice.staff_id }})
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="table-responsive mb-3">
+                    <table class="table table-bordered table-sm align-middle mb-0">
+                        <thead class="table-light text-center">
+                        <tr>
+                            <th>STT</th>
+                            <th>Phòng</th>
+                            <th>Loại Phòng</th>
+                            <th>Số Ngày</th>
+                            <th>Đơn Giá</th>
+                            <th>Phụ Thu</th>
+                            <th>Hệ Số Khách</th>
+                            <th>Thành Tiền</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {% for d in invoice.details %}
+                            <tr>
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td class="text-center fw-bold">{{ d.room.room_number }}</td>
+                                <td>{{ d.room.room_type.name }}</td>
+                                <td class="text-center">{{ d.stay_days }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(d.applied_price) }}đ</td>
+                                <td class="text-center">{{ (d.extra_guest_rate * 100)|int }}%</td>
+                                <td class="text-center">x{{ d.guest_factor }}</td>
+                                <td class="text-end fw-semibold">{{ "{:,.0f}".format(d.room_total) }}đ</td>
+                            </tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                {% if copy_type == 'manager' %}
+                    <div class="border border-dark rounded p-3 bg-light mb-3 small">
+                        <h6 class="fw-bold text-uppercase text-dark mb-2">Thông Tin Kiểm Soát Nội Bộ (Chỉ hiển thị trên
+                            Liên Quản Lý)</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <strong>Chi tiết thời gian trả phòng từng phòng:</strong>
+                                <ul class="mb-1 ps-3">
+                                    {% for rd in invoice.rental.rental_details %}
+                                        <li>
+                                            Phòng {{ rd.room.room_number }}:
+                                            {{ rd.actual_checkout.strftime('%d/%m/%Y %H:%M') if rd.actual_checkout else 'Chưa trả phòng (Thanh toán trước)' }}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Danh sách khách lưu trú thực tế:</strong>
+                                <ul class="mb-1 ps-3">
+                                    {% for s in invoice.rental.stay_details %}
+                                        <li>{{ s.customer.user.full_name }} - CCCD: {{ s.customer.user.identity_card }}
+                                            ({{ s.customer.customer_type.value }})
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="row justify-content-end">
+                    <div class="col-md-6">
+                        <table class="table table-sm table-borderless mb-0">
+                            <tr>
+                                <td>Tổng tiền phòng:</td>
+                                <td class="text-end fw-semibold">{{ "{:,.0f}".format(invoice.total_room_amount) }} VNĐ
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>Tiền cọc đã khấu trừ (20%):</td>
+                                <td class="text-end text-success">- {{ "{:,.0f}".format(invoice.deposit_deducted) }}
+                                    VNĐ
+                                </td>
+                            </tr>
+                            <tr class="border-top border-dark">
+                                <td class="fw-bold fs-6">Số tiền thực thu:</td>
+                                <td class="text-end fw-bold fs-5 text-danger">{{ "{:,.0f}".format(invoice.final_amount) }}
+                                    VNĐ
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="row text-center mt-4 pt-3 border-top small">
+                    <div class="col-6">
+                        <div class="fw-bold">Khách hàng</div>
+                        <div class="text-muted">(Ký và ghi rõ họ tên)</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="fw-bold">Nhân viên thu ngân</div>
+                        <div class="text-muted">{{ invoice.staff.user.full_name }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
-
-    <div class="card shadow-sm border-dark">
-        <div class="card-body p-4">
-            <div class="row border-bottom pb-3 mb-3 align-items-center">
-                <div class="col-7">
-                    <h4 class="fw-bold mb-1">AURELIA HOTEL &amp; SUITES</h4>
-                    <div class="small text-muted">Hệ thống Quản lý Khách sạn &amp; Lưu trú</div>
-                    <div class="small text-muted">Mã hóa đơn: <strong>#{{ invoice.id }}</strong></div>
-                </div>
-                <div class="col-5 text-end">
-                    <h5 class="fw-bold text-uppercase mb-1">HÓA ĐƠN THANH TOÁN</h5>
-                    {% if copy_type == 'manager' %}
-                        <span class="badge bg-dark">LIÊN 2: BẢN LƯU QUẢN LÝ (CHI TIẾT)</span>
-                    {% else %}
-                        <span class="badge bg-primary">LIÊN 1: BẢN GIAO KHÁCH HÀNG</span>
-                    {% endif %}
-                    <div class="small text-muted mt-1">Ngày lập: {{ invoice.payment_date.strftime('%d/%m/%Y %H:%M') }}</div>
-                </div>
-            </div>
-
-            <div class="row mb-3 small">
-                <div class="col-md-6">
-                    <div><strong>Mã phiếu thuê:</strong> #{{ invoice.rental_id }}</div>
-                    <div><strong>Nhận phòng thực tế:</strong> {{ invoice.rental.checkin_date.strftime('%d/%m/%Y %H:%M') }}</div>
-                    <div><strong>Phương thức thanh toán:</strong> {{ invoice.payment_method }}</div>
-                </div>
-                <div class="col-md-6 text-md-end">
-                    {% if invoice.rental.booking and invoice.rental.booking.customer %}
-                        <div><strong>Khách đặt phòng:</strong> {{ invoice.rental.booking.customer.user.full_name }}</div>
-                        <div><strong>Điện thoại:</strong> {{ invoice.rental.booking.customer.user.phone }}</div>
-                    {% elif invoice.rental.stay_details %}
-                        <div><strong>Khách đại diện:</strong> {{ invoice.rental.stay_details.customer.user.full_name }}</div>
-                        <div><strong>Điện thoại:</strong> {{ invoice.rental.stay_details.customer.user.phone }}</div>
-                    {% endif %}
-                    {% if copy_type == 'manager' %}
-                        <div class="text-danger"><strong>Nhân viên thu ngân:</strong> {{ invoice.staff.user.full_name }} (ID: #{{ invoice.staff_id }})</div>
-                    {% endif %}
-                </div>
-            </div>
+{% endblock %}
