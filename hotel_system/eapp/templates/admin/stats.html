@@ -64,3 +64,42 @@
     </div>
 </div>
 
+<div class="row">
+    <div class="col-md-5">
+        <div class="card h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">2. Mật độ sử dụng phòng (Tháng {{ selected_month }}/{{ selected_year }})</h5>
+            </div>
+            <div class="card-body" style="max-height: 350px; overflow-y: auto;">
+                <table class="table table-bordered table-hover">
+                    <thead>
+                        <tr>
+                            <th>Số phòng</th>
+                            <th class="text-end">Số ngày thuê</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for o in occupancy_stats %}
+                        <tr>
+                            <td class="fw-bold">Phòng {{ o[0] }}</td>
+                            <td class="text-end">{{ o[1] or 0 }} ngày</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-7">
+        <div class="card h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Biểu đồ mật độ sử dụng từng phòng</h5>
+            </div>
+            <div class="card-body">
+                <canvas id="occupancyChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
