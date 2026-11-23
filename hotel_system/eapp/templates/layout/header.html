@@ -1,64 +1,85 @@
-<nav class="navbar navbar-expand-sm bg-dark navbar-dark shadow-sm">
+<nav class="navbar navbar-dark bg-dark shadow-sm">
     <div class="container">
-        <a class="navbar-brand fw-bold" href="/">Aurelia Hotel & Suites</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#collapsibleNavbar">
-            <span class="navbar-toggler-icon"></span>
-        </button>
+        <div class="d-flex align-items-center">
+            <button class="btn btn-outline-light me-3" type="button"
+                    data-bs-toggle="offcanvas" data-bs-target="#leftSidebar">
+                &#9776; Menu
+            </button>
+            <a class="navbar-brand fw-bold mb-0" href="/">Aurelia Hotel &amp; Suites</a>
+        </div>
 
-        <div class="collapse navbar-collapse" id="collapsibleNavbar">
-            <ul class="navbar-nav me-auto">
-                <li class="nav-item">
-                    <a class="nav-link" href="/">Trang chủ</a>
-                </li>
-                {% for rt in room_types %}
-                <li class="nav-item">
-                    <a class="nav-link" href="/?room_type_id={{ rt.id }}">{{ rt.name }}</a>
-                </li>
-                {% endfor %}
-
-                <li class="nav-item">
-                    <a class="nav-link" href="/booking-cart">
-                        Phòng đang chọn <span class="badge bg-danger room-counter">{{ selected_summary.total_rooms }}</span>
-                    </a>
-                </li>
-
-                {% if current_user.is_authenticated %}
-                    {% if current_user.role.name == 'CUSTOMER' %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="/my-bookings">Đơn đặt của tôi</a>
-                    </li>
-                    {% endif %}
-                    {% if current_user.role.name in ['STAFF', 'MANAGER'] %}
-                    <li class="nav-item">
-                        <a class="nav-link text-warning fw-semibold" href="/reception">Quầy Lễ tân</a>
-                    </li>
-                    {% endif %}
-                    {% if current_user.role.name == 'MANAGER' %}
-                    <li class="nav-item">
-                        <a class="nav-link text-info fw-semibold" href="/admin">Quản trị hệ thống</a>
-                    </li>
-                    {% endif %}
-                {% endif %}
-            </ul>
-
-            <ul class="navbar-nav">
-                {% if current_user.is_authenticated %}
-                <li class="nav-item d-flex align-items-center me-2">
-                    <img src="{{ current_user.user.avatar }}" alt="Avatar" class="rounded-circle me-2" style="width: 32px; height: 32px; object-fit: cover;">
-                    <span class="navbar-text text-white">Xin chào, <strong>{{ current_user.user.full_name }}</strong></span>
-                </li>
-                <li class="nav-item">
-                    <a class="btn btn-outline-light btn-sm ms-2" href="/logout">Đăng xuất</a>
-                </li>
-                {% else %}
-                <li class="nav-item">
-                    <a class="nav-link" href="/login">Đăng nhập</a>
-                </li>
-                <li class="nav-item">
-                    <a class="btn btn-primary btn-sm ms-2" href="/register">Đăng ký</a>
-                </li>
-                {% endif %}
-            </ul>
+        <div class="d-flex align-items-center">
+            <a href="/booking-list" class="btn btn-warning btn-sm fw-semibold me-2">
+                Phòng đang chọn (<span class="booking-counter">{{ session.get('selected_rooms')|length if session.get('selected_rooms') else 0 }}</span>)
+            </a>
+            {% if current_user.is_authenticated %}
+                <span class="text-light small d-none d-md-inline">Xin chào, {{ current_user.user.full_name }}</span>
+            {% else %}
+                <a href="/login" class="btn btn-outline-light btn-sm">Đăng nhập</a>
+            {% endif %}
         </div>
     </div>
 </nav>
+
+<div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="leftSidebar" style="width: 280px;">
+    <div class="offcanvas-header border-bottom border-secondary">
+        <h5 class="offcanvas-title fw-bold">Aurelia Hotel &amp; Suites</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
+    </div>
+
+    <div class="offcanvas-body d-flex flex-column justify-content-between">
+        <div>
+            {% if current_user.is_authenticated %}
+            <div class="d-flex align-items-center mb-3 pb-3 border-bottom border-secondary">
+                <img src="{{ current_user.user.avatar }}" alt="Avatar"
+                     class="rounded-circle me-2" width="42" height="42" style="object-fit: cover;">
+                <div>
+                    <div class="fw-semibold">{{ current_user.user.full_name }}</div>
+                    <small class="text-secondary">{{ current_user.role.name }}</small>
+                </div>
+            </div>
+            {% endif %}
+
+            <ul class="nav nav-pills flex-column gap-1">
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="/">Trang chủ &amp; Tìm phòng</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="/booking-list">Danh sách phòng đang chọn</a>
+                </li>
+
+                {% if current_user.is_authenticated %}
+                <li class="nav-item">
+                    <a class="nav-link text-white" href="/my-bookings">Lịch sử đặt phòng của tôi</a>
+                </li>
+
+                {% if current_user.role.name in ['STAFF', 'MANAGER'] %}
+                <li class="nav-item mt-2 pt-2 border-top border-secondary">
+                    <small class="text-uppercase text-secondary px-3">Nghiệp vụ Khách sạn</small>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link text-warning" href="/reception">Quầy Lễ tân (Check-in / Out)</a>
+                </li>
+                {% endif %}
+
+                {% if current_user.role.name == 'MANAGER' %}
+                <li class="nav-item">
+                    <a class="nav-link text-info" href="/admin">Trang Quản trị &amp; Thống kê</a>
+                </li>
+                {% endif %}
+                {% endif %}
+            </ul>
+        </div>
+
+        <div class="border-top border-secondary pt-3">
+            {% if current_user.is_authenticated %}
+                <a href="/logout" class="btn btn-outline-danger w-100">Đăng xuất</a>
+            {% else %}
+                <div class="d-grid gap-2">
+                    <a href="/login" class="btn btn-primary">Đăng nhập</a>
+                    <a href="/register" class="btn btn-outline-light">Đăng ký tài khoản</a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
