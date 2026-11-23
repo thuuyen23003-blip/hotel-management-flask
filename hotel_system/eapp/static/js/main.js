@@ -58,11 +58,11 @@ function confirmBooking() {
             }
         }).then(res => res.json()).then(data => {
             if (data.status === 200) {
-                alert('Đặt phòng thành công! Mã đơn #' + data.booking_id + '. Email & thông báo đã được gửi.');
-                location.href = '/my-bookings';
+                location.href = data.pay_url;
             } else {
                 alert('Lỗi: ' + data.err_msg);
             }
         });
+
     }
 }
