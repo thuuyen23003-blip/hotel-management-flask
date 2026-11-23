@@ -4,6 +4,7 @@ from flask import render_template, request, redirect, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from eapp import app, dao, login, utils
 from eapp.models import AccountRole, CustomerType, Booking, Rental, Customer
+from eapp.utils import MoMoService
 
 # update index room listing and authentication routes
 @app.route('/')
@@ -199,6 +200,71 @@ def common_responses():
 @login.user_loader
 def get_user(account_id):
     return dao.get_account_by_id(account_id)
+
+# add momo deposit payment and callback routes
+@app.route('/api/confirm-booking', methods=['POST'])
+@login_required
+def confirm_booking():
+    selected = session.get('selected_rooms')
+    if not selected:
+        return jsonify({'status': 400, 'err_msg': 'Chưa chọn phòng nào để đặt!'})
+
+    try:
+        checkin_str = request.json.get('expected_checkin')
+        checkout_str = request.json.get('expected_checkout')
+        expected_checkin = datetime.strptime(checkin_str, '%Y-%m-%d')
+        expected_checkout = datetime.strptime(checkout_str, '%Y-%m-%d')
+
+        reg = dao.get_current_regulation()
+        now = datetime.now()
+        if not utils.validate_max_hold_days(now, expected_checkin, reg.max_hold_days):
+            return jsonify({'status': 400, 'err_msg': 'Ngày nhận phòng vượt quá ' + str(reg.max_hold_days) + ' ngày!'})
+
+        stay_days = max(1, (expected_checkout.date() - expected_checkin.date()).days)
+        total_estimated = sum(r['base_price'] * stay_days for r in selected.values())
+        deposit_amount = utils.calculate_deposit(total_estimated, reg.deposit_rate)
+
+        # Save pending dates in session while waiting for MoMo QR payment
+        session['pending_booking_dates'] = {
+            'checkin': checkin_str,
+            'checkout': checkout_str
+        }
+
+        momo = MoMoService()
+        redirect_url = request.host_url + 'momo-booking-return'
+        res = momo.create_payment_url(
+            amount=deposit_amount,
+            order_info='Dat coc dat phong Aurelia Hotel',
+            redirect_url=redirect_url,
+            ipn_url=redirect_url
+        )
+
+        if res.get('resultCode') == 0:
+            return jsonify({'status': 200, 'pay_url': res.get('payUrl')})
+        return jsonify({'status': 400, 'err_msg': 'Không tạo được giao dịch MoMo: ' + str(res.get('message'))})
+    except Exception as ex:
+        return jsonify({'status': 400, 'err_msg': str(ex)})
+
+@app.route('/momo-booking-return')
+@login_required
+def momo_booking_return():
+    result_code = request.args.get('resultCode')
+    if result_code == '0':
+        selected = session.get('selected_rooms')
+        dates = session.get('pending_booking_dates')
+        if selected and dates:
+            expected_checkin = datetime.strptime(dates['checkin'], '%Y-%m-%d')
+            expected_checkout = datetime.strptime(dates['checkout'], '%Y-%m-%d')
+            dao.create_online_booking(
+                customer_user_id=current_user.user_id,
+                selected_rooms=selected,
+                expected_checkin=expected_checkin,
+                expected_checkout=expected_checkout
+            )
+            session.pop('selected_rooms', None)
+            session.pop('pending_booking_dates', None)
+        return redirect('/my-bookings')
+    return redirect('/booking-cart')
 
 if __name__ == '__main__':
     with app.app_context():
