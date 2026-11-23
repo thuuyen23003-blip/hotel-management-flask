@@ -74,7 +74,6 @@ class LogoutView(BaseManagerAuthenticated):
         logout_user()
         return redirect('/admin')
 
-
 admin.add_view(RoomTypeView(RoomType, db.session, name='Loại phòng'))
 admin.add_view(RoomView(Room, db.session, name='Danh sách phòng'))
 admin.add_view(RegulationView(Regulation, db.session, name='Quy định (UC01)'))
