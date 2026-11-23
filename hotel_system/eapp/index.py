@@ -179,16 +179,56 @@ def reception_checkin():
     except Exception as ex:
         return "Lỗi lập phiếu thuê: " + str(ex), 400
 
+# update checkout and add momo checkout return
 @app.route('/reception/checkout/<int:rental_id>', methods=['POST'])
 @login_required
 def reception_checkout(rental_id):
     payment_method = request.form.get('payment_method', 'Tiền mặt')
+    if payment_method == 'Ví MoMo':
+        rental = Rental.query.get(rental_id)
+        reg = dao.get_current_regulation()
+        now = datetime.now()
+        guest_count = len(rental.stay_details)
+        has_foreign = any(s.customer.customer_type == CustomerType.FOREIGN for s in rental.stay_details)
+
+        total_room = 0
+        for rd in rental.rental_details:
+            stay_days = max(1, (now.date() - rental.checkin_date.date()).days)
+            calc = utils.calculate_room_checkout(rd.room.room_type.base_price, stay_days, guest_count, has_foreign, reg)
+            total_room += calc['room_total']
+
+        final_amount = max(0, total_room - rental.deposit_deducted)
+        if final_amount > 0:
+            momo = MoMoService()
+            redirect_url = request.host_url + 'momo-checkout-return?rental_id=' + str(rental_id)
+            res = momo.create_payment_url(
+                amount=final_amount,
+                order_info='Thanh toan tra phong #' + str(rental_id),
+                redirect_url=redirect_url,
+                ipn_url=redirect_url
+            )
+            if res.get('resultCode') == 0:
+                return redirect(res.get('payUrl'))
+
     invoice = dao.checkout_and_create_invoice(
         rental_id=rental_id,
         staff_user_id=current_user.user_id,
         payment_method=payment_method
     )
     return render_template('invoice.html', invoice=invoice)
+
+@app.route('/momo-checkout-return')
+@login_required
+def momo_checkout_return():
+    if request.args.get('resultCode') == '0':
+        rental_id = int(request.args.get('rental_id'))
+        invoice = dao.checkout_and_create_invoice(
+            rental_id=rental_id,
+            staff_user_id=current_user.user_id,
+            payment_method='Ví MoMo'
+        )
+        return render_template('invoice.html', invoice=invoice)
+    return redirect('/reception')
 
 @app.context_processor
 def common_responses():
