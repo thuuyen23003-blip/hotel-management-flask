@@ -229,4 +229,145 @@ def cancel_booking(booking_id):
     return redirect('/my-bookings')
 
 
+# 4. Reception Operations (Check-in, Room Replacement, Room Cleaning & Checkout)
+@app.route('/reception')
+@login_required
+def reception_dashboard():
+    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
+        return redirect('/')
 
+    all_rooms = Room.query.order_by(Room.room_number).all()
+    available_rooms = Room.query.filter_by(status=RoomStatus.AVAILABLE).order_by(Room.room_number).all()
+    pending_bookings = Booking.query.filter_by(status=BookingStatus.PENDING_CHECKIN).all()
+    active_rentals = Rental.query.filter_by(status=RentalStatus.ACTIVE).all()
+    customers = Customer.query.all()
+
+    return render_template('reception.html',
+                           rooms=all_rooms,
+                           available_rooms=available_rooms,
+                           pending_bookings=pending_bookings,
+                           active_rentals=active_rentals,
+                           customers=customers)
+
+
+@app.route('/reception/checkin', methods=['POST'])
+@login_required
+def reception_checkin():
+    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
+        return redirect('/')
+
+    checkin_type = request.form.get('checkin_type')
+    try:
+        if checkin_type == 'booking':
+            booking_id = int(request.form.get('booking_id'))
+            room_replacements = {}
+            old_room_id = request.form.get('old_room_id')
+            new_room_id = request.form.get('new_room_id')
+            if old_room_id and new_room_id:
+                room_replacements[str(old_room_id)] = int(new_room_id)
+
+            dao.create_rental_from_booking(
+                booking_id=booking_id,
+                staff_user_id=current_user.user_id,
+                room_replacements=room_replacements
+            )
+        else:
+            room_ids = request.form.getlist('room_ids')
+            customer_ids = request.form.getlist('customer_ids')
+            checkout_str = request.form.get('expected_checkout')
+            expected_checkout = datetime.strptime(checkout_str, '%Y-%m-%d')
+            dao.create_walkin_rental(
+                staff_user_id=current_user.user_id,
+                room_ids=room_ids,
+                expected_checkout=expected_checkout,
+                customer_ids=customer_ids
+            )
+        return redirect('/reception?msg=Lập phiếu thuê phòng thành công!')
+    except Exception as ex:
+        return redirect('/reception?err=' + str(ex))
+
+
+@app.route('/reception/clean-room/<int:room_id>', methods=['POST'])
+@login_required
+def clean_room(room_id):
+    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
+        return redirect('/')
+    room = Room.query.get(room_id)
+    if room and room.status == RoomStatus.CLEANING:
+        room.status = RoomStatus.AVAILABLE
+        db.session.commit()
+    return redirect('/reception?msg=Phòng ' + room.room_number + ' đã dọn xong và sẵn sàng đón khách!')
+
+
+@app.route('/reception/checkout/<int:rental_id>', methods=['POST'])
+@login_required
+def reception_checkout(rental_id):
+    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
+        return redirect('/')
+
+    payment_method = request.form.get('payment_method', 'Tiền mặt')
+
+    if payment_method == 'Chuyển khoản bằng MoMo':
+        rental = Rental.query.get(rental_id)
+        now = datetime.now()
+        stay_days = max(1, (now.date() - rental.checkin_date.date()).days)
+
+        total_est = sum(rd.room.room_type.base_price * stay_days for rd in rental.rental_details)
+        final_amt = max(1000, round(total_est - rental.deposit_deducted, 0))
+
+        order_id = "INV_" + str(rental_id) + "_" + str(uuid.uuid4().hex[:6]).upper()
+        return_url = url_for('momo_checkout_return', rental_id=rental_id, _external=True)
+
+        momo = MoMoService()
+        res = momo.create_payment(
+            order_id=order_id,
+            amount=final_amt,
+            order_info="Thanh toan tra phong #" + str(rental_id) + " - Aurelia Hotel & Suites",
+            return_url=return_url,
+            notify_url=return_url
+        )
+        if res.get('resultCode') == 0:
+            return redirect(res.get('payUrl'))
+        else:
+            return redirect('/reception?err=Lỗi tạo QR MoMo: ' + str(res.get('message')))
+
+    try:
+        invoice = dao.checkout_and_create_invoice(
+            rental_id=rental_id,
+            staff_user_id=current_user.user_id,
+            payment_method=payment_method
+        )
+        return render_template('invoice.html', invoice=invoice, copy_type='customer')
+    except Exception as ex:
+        return redirect('/reception?err=' + str(ex))
+
+
+@app.route('/momo-checkout-return/<int:rental_id>')
+@login_required
+def momo_checkout_return(rental_id):
+    result_code = request.args.get('resultCode')
+    if result_code == '0':
+        invoice = dao.checkout_and_create_invoice(
+            rental_id=rental_id,
+            staff_user_id=current_user.user_id,
+            payment_method="Chuyển khoản bằng MoMo"
+        )
+        return render_template('invoice.html', invoice=invoice, copy_type='customer')
+    return redirect('/reception?err=Giao dịch thanh toán MoMo không thành công!')
+
+
+@app.route('/invoice/<int:invoice_id>')
+@login_required
+def view_invoice(invoice_id):
+    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
+        return redirect('/')
+    invoice = Invoice.query.get_or_404(invoice_id)
+    copy_type = request.args.get('copy', 'customer')
+    if copy_type == 'manager' and current_user.role != AccountRole.MANAGER:
+        copy_type = 'customer'
+    return render_template('invoice.html', invoice=invoice, copy_type=copy_type)
+
+
+if __name__ == '__main__':
+    from eapp import admin
+    app.run(debug=True)
