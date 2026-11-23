@@ -25,7 +25,9 @@ def calculate_deposit(total_amount, deposit_rate):
 
 # add 28-day maximum booking hold rule validation
 def validate_max_hold_days(booking_date, expected_checkin, max_hold_days):
-    wait_days = (expected_checkin.date() - booking_date.date()).days
+    d1 = booking_date.date() if hasattr(booking_date, 'date') else booking_date
+    d2 = expected_checkin.date() if hasattr(expected_checkin, 'date') else expected_checkin
+    wait_days = (d2 - d1).days
     return 0 <= wait_days <= max_hold_days
 
 # add room checkout calculation with surcharge and foreign factor
@@ -47,24 +49,24 @@ def calculate_room_checkout(base_price, stay_days, guest_count,
 
 # implement NotificationService for Gmail and Telegram alerts
 class NotificationService:
-    def send_email_confirmation(self, to_email, booking):
+    def send_email_confirmation(self, to_email, booking, customer_name="Quý khách"):
         if not to_email:
             return False
 
         try:
-            subject = "[Hotel Booking] Xác nhận đặt phòng #" + str(booking.id)
+            subject = "[Aurelia Hotel & Suites] Xác nhận đặt phòng #" + str(booking.id)
             checkin = booking.expected_checkin.strftime('%d/%m/%Y')
             checkout = booking.expected_checkout.strftime('%d/%m/%Y')
             total = "{:,.0f}".format(booking.total_estimated)
             deposit = "{:,.0f}".format(booking.deposit_amount)
 
-            body = "Xin chào,\n\n"
-            body += "Đơn đặt phòng #" + str(booking.id) + " của bạn đã được xác nhận thành công.\n"
+            body = "Xin chào " + str(customer_name) + ",\n\n"
+            body += "Đơn đặt phòng #" + str(booking.id) + " của bạn tại Aurelia Hotel & Suites đã được xác nhận thành công.\n"
             body += "- Ngày nhận phòng dự kiến: " + checkin + "\n"
             body += "- Ngày trả phòng dự kiến: " + checkout + "\n"
             body += "- Tổng tiền dự kiến: " + total + " VNĐ\n"
-            body += "- Tiền cọc đã thanh toán: " + deposit + " VNĐ\n\n"
-            body += "Cảm ơn bạn đã lựa chọn dịch vụ của chúng tôi!"
+            body += "- Tiền cọc 20% đã thanh toán: " + deposit + " VNĐ\n\n"
+            body += "Cảm ơn bạn đã lựa chọn dịch vụ của Aurelia Hotel & Suites!"
 
             msg = Message(subject=subject, recipients=[to_email], body=body)
             mail.send(msg)
@@ -81,16 +83,17 @@ class NotificationService:
             return False
 
         try:
-            url = "https://telegram.org" + token + "/sendMessage"
+            url = "https://telegram.org" + str(token) + "/sendMessage"
             data = {
                 "chat_id": chat_id,
-                "text": message
+                "text": "[Aurelia Hotel & Suites] " + str(message)
             }
             requests.post(url, json=data, timeout=5)
             return True
         except Exception as ex:
             print("Lỗi gửi Telegram:", ex)
             return False
+
 
 # add momo service payment link generator
 class MoMoService:

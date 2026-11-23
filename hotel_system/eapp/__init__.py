@@ -7,7 +7,7 @@ import cloudinary
 app = Flask(__name__)
 app.secret_key = '&*(^UIGKJHJKHG&TFUTFYHGIUG&T*TUITGUIG&F'
 app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root:root1234@localhost/hoteldb?charset=utf8mb4"
-app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = True
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config['PAGE_SIZE'] = 8
 
 # Gmail SMTP Configuration
@@ -26,7 +26,7 @@ app.config['TELEGRAM_CHAT_ID'] = '9242656093'
 app.config['MOMO_PARTNER_CODE'] = 'MOMO'
 app.config['MOMO_ACCESS_KEY'] = 'F8BBA842ECF85'
 app.config['MOMO_SECRET_KEY'] = 'K951B6PE1waDMi640xX08PD3vg6EkVlz'
-app.config['MOMO_ENDPOINT'] = 'https://momo.vn'
+app.config['MOMO_ENDPOINT'] = 'https://test-payment.momo.vn/v2/gateway/api/create'
 
 db = SQLAlchemy(app=app)
 login = LoginManager(app=app)
