@@ -103,5 +103,130 @@ def logout_view():
     return redirect('/login')
 
 
+# 3. Online Room Selection & Booking Flow (with MoMo Deposit)
+@app.route('/api/select-room', methods=['POST'])
+def add_selected_room():
+    data = request.json
+    room_id = str(data.get('id'))
+    selected_rooms = session.get('selected_rooms', {})
+
+    if room_id not in selected_rooms:
+        selected_rooms[room_id] = {
+            'id': room_id,
+            'room_number': data.get('room_number'),
+            'room_type': data.get('room_type'),
+            'base_price': float(data.get('base_price'))
+        }
+    session['selected_rooms'] = selected_rooms
+    return jsonify(summarize_selected_rooms(selected_rooms))
+
+
+@app.route('/api/remove-room/<room_id>', methods=['DELETE'])
+def remove_selected_room(room_id):
+    selected_rooms = session.get('selected_rooms', {})
+    if room_id in selected_rooms:
+        del selected_rooms[room_id]
+    session['selected_rooms'] = selected_rooms
+    return jsonify(summarize_selected_rooms(selected_rooms))
+
+
+@app.route('/booking-list')
+def booking_list():
+    selected_rooms = session.get('selected_rooms', {})
+    summary = summarize_selected_rooms(selected_rooms)
+    return render_template('booking_list.html',
+                           selected_rooms=selected_rooms,
+                           summary=summary)
+
+
+@app.route('/api/confirm-booking', methods=['POST'])
+@login_required
+def confirm_booking():
+    selected_rooms = session.get('selected_rooms')
+    if not selected_rooms:
+        return jsonify({'status': 400, 'err_msg': 'Danh sách phòng trống!'})
+
+    data = request.json
+    checkin_str = data.get('expected_checkin')
+    checkout_str = data.get('expected_checkout')
+
+    try:
+        expected_checkin = datetime.strptime(checkin_str, '%Y-%m-%d')
+        expected_checkout = datetime.strptime(checkout_str, '%Y-%m-%d')
+
+        reg = dao.get_current_regulation()
+        stay_days = max(1, (expected_checkout.date() - expected_checkin.date()).days)
+        total_est = sum(r['base_price'] * stay_days for r in selected_rooms.values())
+        deposit = round(total_est * reg.deposit_rate, 0)
+
+        session['pending_booking'] = {
+            'expected_checkin': checkin_str,
+            'expected_checkout': checkout_str
+        }
+
+        order_id = "BOOK_" + str(uuid.uuid4().hex[:10]).upper()
+        return_url = url_for('momo_booking_return', _external=True)
+        notify_url = return_url
+
+        momo = MoMoService()
+        res = momo.create_payment(
+            order_id=order_id,
+            amount=deposit,
+            order_info="Dat coc 20% phong Aurelia Hotel & Suites",
+            return_url=return_url,
+            notify_url=notify_url
+        )
+
+        if res.get('resultCode') == 0:
+            return jsonify({'status': 200, 'pay_url': res.get('payUrl')})
+        else:
+            return jsonify({'status': 400, 'err_msg': 'Lỗi MoMo: ' + str(res.get('message'))})
+    except Exception as ex:
+        return jsonify({'status': 400, 'err_msg': str(ex)})
+
+
+@app.route('/momo-booking-return')
+@login_required
+def momo_booking_return():
+    result_code = request.args.get('resultCode')
+    pending = session.get('pending_booking')
+    selected_rooms = session.get('selected_rooms')
+
+    if result_code == '0' and pending and selected_rooms:
+        expected_checkin = datetime.strptime(pending['expected_checkin'], '%Y-%m-%d')
+        expected_checkout = datetime.strptime(pending['expected_checkout'], '%Y-%m-%d')
+
+        booking = dao.create_online_booking(
+            customer_user_id=current_user.user_id,
+            selected_rooms=selected_rooms,
+            expected_checkin=expected_checkin,
+            expected_checkout=expected_checkout
+        )
+        session['selected_rooms'] = {}
+        session.pop('pending_booking', None)
+        return redirect('/my-bookings?success_id=' + str(booking.id))
+
+    return redirect('/booking-list?err=Thanh toán cọc MoMo thất bại hoặc đã bị hủy!')
+
+
+@app.route('/my-bookings')
+@login_required
+def my_bookings():
+    bookings = dao.get_bookings_by_customer(current_user.user_id)
+    return render_template('my_bookings.html', bookings=bookings)
+
+
+@app.route('/cancel-booking/<int:booking_id>', methods=['POST'])
+@login_required
+def cancel_booking(booking_id):
+    booking = Booking.query.get(booking_id)
+    if booking and booking.customer_id == current_user.user_id and booking.status == BookingStatus.PENDING_CHECKIN:
+        booking.status = BookingStatus.CANCELLED
+        for d in booking.details:
+            if d.room.status == RoomStatus.BOOKED:
+                d.room.status = RoomStatus.AVAILABLE
+        db.session.commit()
+    return redirect('/my-bookings')
+
 
 
