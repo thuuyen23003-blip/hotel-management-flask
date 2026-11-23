@@ -184,7 +184,7 @@ def reception_checkin():
 @login_required
 def reception_checkout(rental_id):
     payment_method = request.form.get('payment_method', 'Tiền mặt')
-    if payment_method == 'Ví MoMo':
+    if payment_method == 'Chuyển khoản bằng MoMo':
         rental = Rental.query.get(rental_id)
         reg = dao.get_current_regulation()
         now = datetime.now()
@@ -225,7 +225,7 @@ def momo_checkout_return():
         invoice = dao.checkout_and_create_invoice(
             rental_id=rental_id,
             staff_user_id=current_user.user_id,
-            payment_method='Ví MoMo'
+            payment_method='Chuyển khoản bằng MoMo'
         )
         return render_template('invoice.html', invoice=invoice)
     return redirect('/reception')
