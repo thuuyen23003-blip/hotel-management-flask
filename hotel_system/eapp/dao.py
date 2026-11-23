@@ -111,6 +111,10 @@ def create_online_booking(customer_user_id, selected_rooms, expected_checkin, ex
 
     deposit_amount = calculate_deposit(total_estimated, reg.deposit_rate)
 
+    if not Customer.query.get(customer_user_id):
+        db.session.add(Customer(user_id=customer_user_id, customer_type=CustomerType.DOMESTIC))
+        db.session.flush()
+
     booking = Booking(
         booking_date=now,
         expected_checkin=expected_checkin,
@@ -146,7 +150,7 @@ def create_online_booking(customer_user_id, selected_rooms, expected_checkin, ex
     user = User.query.get(customer_user_id)
     if user:
         notifier = NotificationService()
-        notifier.send_email_confirmation(user.email, booking)
+        notifier.send_email_confirmation(user.email, booking, user.full_name)
 
         tele_msg = "ĐƠN ĐẶT PHÒNG MỚI #" + str(booking.id) + "\n"
         tele_msg += "Khách hàng: " + user.full_name + " (" + user.phone + ")\n"
@@ -281,10 +285,9 @@ def stats_revenue_by_room_type(month, year):
             .group_by(RoomType.id).all())
 
 def stats_occupancy_by_room(month, year):
-    return (db.session.query(Room.room_number, func.sum(InvoiceDetail.stay_days).label('total_days'))
-            .join(InvoiceDetail, InvoiceDetail.room_id == Room.id, isouter=True)
-            .join(Invoice, Invoice.id == InvoiceDetail.invoice_id, isouter=True)
-            .filter((Invoice.id == None) |
-                    ((func.extract('month', Invoice.payment_date) == month) &
-                     (func.extract('year', Invoice.payment_date) == year)))
+    return (db.session.query(Room.room_number, func.coalesce(func.sum(InvoiceDetail.stay_days), 0).label('total_days'))
+            .outerjoin(InvoiceDetail, InvoiceDetail.room_id == Room.id)
+            .outerjoin(Invoice, (Invoice.id == InvoiceDetail.invoice_id) &
+                       (func.extract('month', Invoice.payment_date) == month) &
+                       (func.extract('year', Invoice.payment_date) == year))
             .group_by(Room.id).order_by(Room.room_number).all())

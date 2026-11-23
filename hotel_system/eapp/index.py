@@ -3,7 +3,10 @@ from datetime import datetime
 from flask import render_template, request, redirect, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from eapp import app, dao, login, utils
-from eapp.models import AccountRole, CustomerType, Booking, Rental, Customer
+from eapp.models import (
+    AccountRole, CustomerType, Booking, Rental, Customer,
+    Room, RoomStatus, BookingStatus, RentalStatus
+)
 from eapp.utils import MoMoService
 
 # update index room listing and authentication routes
@@ -112,30 +115,6 @@ def remove_selected_room(room_id):
     session['selected_rooms'] = selected
     return jsonify(utils.summarize_selected_rooms(selected))
 
-@app.route('/api/confirm-booking', methods=['POST'])
-@login_required
-def confirm_booking():
-    selected = session.get('selected_rooms')
-    if not selected:
-        return jsonify({'status': 400, 'err_msg': 'Chưa chọn phòng nào để đặt!'})
-
-    try:
-        checkin_str = request.json.get('expected_checkin')
-        checkout_str = request.json.get('expected_checkout')
-        expected_checkin = datetime.strptime(checkin_str, '%Y-%m-%d')
-        expected_checkout = datetime.strptime(checkout_str, '%Y-%m-%d')
-
-        booking = dao.create_online_booking(
-            customer_user_id=current_user.user_id,
-            selected_rooms=selected,
-            expected_checkin=expected_checkin,
-            expected_checkout=expected_checkout
-        )
-        del session['selected_rooms']
-        return jsonify({'status': 200, 'booking_id': booking.id})
-    except Exception as ex:
-        return jsonify({'status': 400, 'err_msg': str(ex)})
-
 @app.route('/my-bookings')
 @login_required
 def my_bookings():
@@ -148,9 +127,9 @@ def my_bookings():
 def reception_dashboard():
     if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
         return redirect('/')
-    all_rooms = dao.load_rooms(page=1)
-    pending_bookings = Booking.query.filter_by(status='PENDING_CHECKIN').all()
-    active_rentals = Rental.query.filter_by(status='ACTIVE').all()
+    all_rooms = Room.query.all()
+    pending_bookings = Booking.query.filter_by(status=BookingStatus.PENDING_CHECKIN).all()
+    active_rentals = Rental.query.filter_by(status=RentalStatus.ACTIVE).all()
     customers = Customer.query.all()
     return render_template('reception.html',
                            rooms=all_rooms,
