@@ -2,7 +2,7 @@ import math
 from datetime import datetime
 from flask import render_template, request, redirect, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
-from eapp import app, dao, login, utils
+from eapp import app, dao, login, utils,db
 from eapp.models import (
     AccountRole, CustomerType, Booking, Rental, Customer,
     Room, RoomStatus, BookingStatus, RentalStatus
@@ -284,6 +284,29 @@ def momo_booking_return():
             session.pop('pending_booking_dates', None)
         return redirect('/my-bookings')
     return redirect('/booking-cart')
+
+@app.route('/reception/clean-room/<int:room_id>', methods=['POST'])
+@login_required
+def clean_room(room_id):
+    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
+        return redirect('/')
+    room = Room.query.get(room_id)
+    if room and room.status == RoomStatus.CLEANING:
+        room.status = RoomStatus.AVAILABLE
+        db.session.commit()
+    return redirect('/reception')
+
+@app.route('/cancel-booking/<int:booking_id>', methods=['POST'])
+@login_required
+def cancel_booking(booking_id):
+    booking = Booking.query.get(booking_id)
+    if booking and booking.customer_id == current_user.user_id and booking.status == BookingStatus.PENDING_CHECKIN:
+        booking.status = BookingStatus.CANCELLED
+        for d in booking.details:
+            if d.room.status == RoomStatus.BOOKED:
+                d.room.status = RoomStatus.AVAILABLE
+        db.session.commit()
+    return redirect('/my-bookings')
 
 if __name__ == '__main__':
     with app.app_context():
