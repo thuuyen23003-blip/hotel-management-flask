@@ -7,17 +7,20 @@ from wtforms.fields.numeric import FloatField, IntegerField
 from eapp import app, db, dao
 from eapp.models import AccountRole, RoomType, Room, Regulation
 
-# add admin index and room management views
+
 class MyAdminIndex(AdminIndexView):
     @expose('/')
     def index(self):
-        return self.render('admin/index.html', stats=dao.count_rooms_by_type())
+        return self.render('admin/index.html', stats=dao.stats_rooms_by_type())
+
 
 admin = Admin(app=app, name='Aurelia Hotel Admin', index_view=MyAdminIndex())
 
+
 class ManagerAuthenticated(ModelView):
     def is_accessible(self) -> bool:
-        return current_user.is_authenticated and current_user.user_role == AccountRole.MANAGER
+        return current_user.is_authenticated and current_user.role == AccountRole.MANAGER
+
 
 class RoomTypeView(ManagerAuthenticated):
     column_list = ['id', 'name', 'base_price', 'description']
@@ -25,14 +28,15 @@ class RoomTypeView(ManagerAuthenticated):
     edit_modal = True
     form_overrides = {'base_price': FloatField}
 
+
 class RoomView(ManagerAuthenticated):
-    column_list = ['id', 'room_number', 'room_type', 'status', 'image']
+    column_list = ['id', 'room_number', 'room_type', 'status', 'note']
     column_searchable_list = ['room_number']
     column_filters = ['status', 'room_type_id']
     edit_modal = True
     can_view_details = True
 
-# add regulation management view
+
 class RegulationView(ManagerAuthenticated):
     can_create = False
     can_delete = False
@@ -46,10 +50,10 @@ class RegulationView(ManagerAuthenticated):
         'deposit_rate': FloatField
     }
 
-# add monthly stats view and register admin views
+
 class BaseManagerAuthenticated(BaseView):
     def is_accessible(self) -> bool:
-        return current_user.is_authenticated and current_user.user_role == AccountRole.MANAGER
+        return current_user.is_authenticated and current_user.role == AccountRole.MANAGER
 
 
 class StatsView(BaseManagerAuthenticated):
@@ -73,6 +77,7 @@ class LogoutView(BaseManagerAuthenticated):
     def index(self):
         logout_user()
         return redirect('/admin')
+
 
 admin.add_view(RoomTypeView(RoomType, db.session, name='Loại phòng'))
 admin.add_view(RoomView(Room, db.session, name='Danh sách phòng'))

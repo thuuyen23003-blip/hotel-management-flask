@@ -91,7 +91,7 @@ class NotificationService:
             return False
 
         try:
-            url = "https://telegram.org" + str(token) + "/sendMessage"
+            url = "https://api." + "telegram.org/bot" + str(token) + "/sendMessage"
             data = {
                 "chat_id": chat_id,
                 "text": "[Aurelia Hotel & Suites] " + str(message)
