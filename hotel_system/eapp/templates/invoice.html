@@ -1,0 +1,79 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}Hóa đơn thanh toán #{{ invoice.id }} - Aurelia Hotel & Suites{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center py-3">
+                <h4 class="mb-0">HÓA ĐƠN THANH TOÁN #{{ invoice.id }}</h4>
+                <span class="badge bg-success">Đã thanh toán</span>
+            </div>
+            <div class="card-body p-4">
+                <div class="row mb-3">
+                    <div class="col-6">
+                        <p class="mb-1"><strong>Khách sạn:</strong> Aurelia Hotel &amp; Suites</p>
+                        <p class="mb-1"><strong>Mã phiếu thuê:</strong> #{{ invoice.rental_id }}</p>
+                    </div>
+                    <div class="col-6 text-end">
+                        <p class="mb-1"><strong>Ngày thanh toán:</strong> {{ invoice.payment_date.strftime('%d/%m/%Y %H:%M') }}</p>
+                        <p class="mb-1"><strong>Hình thức:</strong> {{ invoice.payment_method }}</p>
+                    </div>
+                </div>
+
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Phòng</th>
+                                <th>Số ngày ở</th>
+                                <th>Đơn giá gốc</th>
+                                <th>Phụ thu</th>
+                                <th>Hệ số khách</th>
+                                <th class="text-end">Thành tiền</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for d in invoice.details %}
+                            <tr>
+                                <td class="fw-bold">Phòng {{ d.room.room_number }}</td>
+                                <td>{{ d.stay_days }} ngày</td>
+                                <td>{{ "{:,.0f}".format(d.applied_price) }} VNĐ</td>
+                                <td>{{ (d.extra_guest_rate * 100)|int }}%</td>
+                                <td>x{{ d.guest_factor }}</td>
+                                <td class="text-end fw-semibold">{{ "{:,.0f}".format(d.room_total) }} VNĐ</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="row justify-content-end mt-3">
+                    <div class="col-md-6">
+                        <table class="table table-sm">
+                            <tr>
+                                <td>Tổng tiền phòng:</td>
+                                <td class="text-end fw-semibold">{{ "{:,.0f}".format(invoice.total_room_amount) }} VNĐ</td>
+                            </tr>
+                            <tr>
+                                <td>Khấu trừ tiền cọc đã đóng:</td>
+                                <td class="text-end text-success">- {{ "{:,.0f}".format(invoice.deposit_deducted) }} VNĐ</td>
+                            </tr>
+                            <tr class="table-warning">
+                                <td class="fw-bold fs-5">Khách cần thanh toán:</td>
+                                <td class="text-end fw-bold fs-5 text-danger">{{ "{:,.0f}".format(invoice.final_amount) }} VNĐ</td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="/reception" class="btn btn-outline-secondary">Quay lại Quầy Lễ tân</a>
+                    <button type="button" class="btn btn-dark" onclick="window.print()">In hóa đơn</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
