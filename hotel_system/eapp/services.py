@@ -65,6 +65,23 @@ class NotificationService:
             print("Lỗi gửi email hóa đơn:", ex)
             return False
 
+    # Send concise check-in summary message to customer
+    def send_customer_checkin_summary(self, booking, room_numbers, customer_name="Quý khách"):
+        checkin_str = booking.expected_checkin.strftime('%d/%m/%Y')
+        checkout_str = booking.expected_checkout.strftime('%d/%m/%Y')
+        deposit_str = "{:,.0f}".format(booking.deposit_amount)
+
+        summary_msg = (
+                "CÁM ƠN QUÝ KHÁCH ĐÃ ĐẾN VỚI HỆ THỐNG KHÁCH SẠN AURELIA HOTEL & SUITES\n" +
+                "- Khách hàng: " + str(customer_name) + "\n" +
+                "- Mã phiếu đặt: #" + str(booking.id) + "\n" +
+                "- Phòng đã đặt: " + str(room_numbers) + "\n" +
+                "- Nhận - Trả dự kiến: " + checkin_str + " - " + checkout_str + "\n" +
+                "- Tiền cọc (20%): " + deposit_str + " VNĐ\n" +
+                "Vui lòng mang theo CCCD khi đến nhận phòng."
+        )
+        return self.send_telegram_notification(summary_msg)
+
     # Send instant alert to manager via Telegram Bot
     def send_telegram_notification(self, message):
         token = app.config.get('TELEGRAM_BOT_TOKEN')
