@@ -93,3 +93,55 @@
             </div>
         </div>
     </div>
+
+    <div class="col-md-7 mb-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header bg-dark text-white">
+                <h5 class="mb-0">Danh sách phiếu đang thuê (Chờ trả phòng)</h5>
+            </div>
+            <div class="card-body">
+                {% if active_rentals %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Mã phiếu</th>
+                                <th>Phòng</th>
+                                <th>Ngày nhận</th>
+                                <th>Tiền cọc trừ</th>
+                                <th>Thanh toán</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for rt in active_rentals %}
+                            <tr>
+                                <td class="fw-bold">#{{ rt.id }}</td>
+                                <td>
+                                    {% for rd in rt.rental_details %}
+                                    <span class="badge bg-danger">P.{{ rd.room.room_number }}</span>
+                                    {% endfor %}
+                                </td>
+                                <td>{{ rt.checkin_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td class="text-success">{{ "{:,.0f}".format(rt.deposit_deducted) }}đ</td>
+                                <td>
+                                    <form method="post" action="/reception/checkout/{{ rt.id }}" class="d-flex gap-1">
+                                        <select class="form-select form-select-sm" name="payment_method">
+                                            <option value="Tiền mặt">Tiền mặt</option>
+                                            <option value="Chuyển khoản">Chuyển khoản</option>
+                                        </select>
+                                        <button type="submit" class="btn btn-success btn-sm text-nowrap" onclick="return confirm('Xác nhận trả phòng và xuất hóa đơn?')">Trả phòng</button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="alert alert-info mb-0">Hiện không có phiếu thuê phòng nào đang hoạt động.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
