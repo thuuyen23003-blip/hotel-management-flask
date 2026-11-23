@@ -134,9 +134,11 @@ def remove_selected_room(room_id):
 def booking_list():
     selected_rooms = session.get('selected_rooms', {})
     summary = summarize_selected_rooms(selected_rooms)
+    regulation = dao.get_current_regulation()
     return render_template('booking_list.html',
                            selected_rooms=selected_rooms,
-                           summary=summary)
+                           selected_summary=summary,
+                           regulation=regulation)
 
 
 @app.route('/api/confirm-booking', methods=['POST'])
@@ -308,23 +310,34 @@ def reception_checkout(rental_id):
         return redirect('/')
 
     payment_method = request.form.get('payment_method', 'Tiền mặt')
+    action_type = request.form.get('action_type', 'checkout')
+    is_prepaid = (action_type == 'prepay')
+
+    rental = Rental.query.get(rental_id)
+    if rental and rental.invoice and not is_prepaid:
+        dao.checkout_and_create_invoice(
+            rental_id=rental_id,
+            staff_user_id=current_user.user_id,
+            is_prepaid=False
+        )
+        return redirect('/reception?msg=Đã hoàn tất trả phòng #' + str(rental_id) + '!')
 
     if payment_method == 'Chuyển khoản bằng MoMo':
-        rental = Rental.query.get(rental_id)
         now = datetime.now()
-        stay_days = max(1, (now.date() - rental.checkin_date.date()).days)
+        end_date = rental.expected_checkout if is_prepaid else now
+        stay_days = max(1, (end_date.date() - rental.checkin_date.date()).days)
 
         total_est = sum(rd.room.room_type.base_price * stay_days for rd in rental.rental_details)
         final_amt = max(1000, round(total_est - rental.deposit_deducted, 0))
 
         order_id = "INV_" + str(rental_id) + "_" + str(uuid.uuid4().hex[:6]).upper()
-        return_url = url_for('momo_checkout_return', rental_id=rental_id, _external=True)
+        return_url = url_for('momo_checkout_return', rental_id=rental_id, prepay='1' if is_prepaid else '0', _external=True)
 
         momo = MoMoService()
         res = momo.create_payment(
             order_id=order_id,
             amount=final_amt,
-            order_info="Thanh toan tra phong #" + str(rental_id) + " - Aurelia Hotel & Suites",
+            order_info="Thanh toan phong #" + str(rental_id) + " - Aurelia Hotel & Suites",
             return_url=return_url,
             notify_url=return_url
         )
@@ -337,7 +350,8 @@ def reception_checkout(rental_id):
         invoice = dao.checkout_and_create_invoice(
             rental_id=rental_id,
             staff_user_id=current_user.user_id,
-            payment_method=payment_method
+            payment_method=payment_method,
+            is_prepaid=is_prepaid
         )
         return render_template('invoice.html', invoice=invoice, copy_type='customer')
     except Exception as ex:
@@ -348,26 +362,16 @@ def reception_checkout(rental_id):
 @login_required
 def momo_checkout_return(rental_id):
     result_code = request.args.get('resultCode')
+    is_prepaid = (request.args.get('prepay') == '1')
     if result_code == '0':
         invoice = dao.checkout_and_create_invoice(
             rental_id=rental_id,
             staff_user_id=current_user.user_id,
-            payment_method="Chuyển khoản bằng MoMo"
+            payment_method="Chuyển khoản bằng MoMo",
+            is_prepaid=is_prepaid
         )
         return render_template('invoice.html', invoice=invoice, copy_type='customer')
     return redirect('/reception?err=Giao dịch thanh toán MoMo không thành công!')
-
-
-@app.route('/invoice/<int:invoice_id>')
-@login_required
-def view_invoice(invoice_id):
-    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
-        return redirect('/')
-    invoice = Invoice.query.get_or_404(invoice_id)
-    copy_type = request.args.get('copy', 'customer')
-    if copy_type == 'manager' and current_user.role != AccountRole.MANAGER:
-        copy_type = 'customer'
-    return render_template('invoice.html', invoice=invoice, copy_type=copy_type)
 
 
 if __name__ == '__main__':

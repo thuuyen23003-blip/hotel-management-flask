@@ -406,7 +406,7 @@ def checkout_and_create_invoice(rental_id, staff_user_id, payment_method="Tiền
     return invoice
 
 
-# 6. Admin Statistics Queries
+# 6. Admin Statistics Queries (Matches Exam Report Tables with Count & Percentage)
 def stats_rooms_by_type():
     return (db.session.query(RoomType.id, RoomType.name, func.count(Room.id))
             .outerjoin(Room, Room.room_type_id == RoomType.id)
@@ -414,7 +414,11 @@ def stats_rooms_by_type():
 
 
 def stats_revenue_by_room_type(month, year):
-    return (db.session.query(RoomType.name, func.coalesce(func.sum(InvoiceDetail.room_total), 0.0).label('revenue'))
+    rows = (db.session.query(
+                RoomType.name,
+                func.coalesce(func.sum(InvoiceDetail.room_total), 0.0).label('revenue'),
+                func.count(InvoiceDetail.id).label('rental_count')
+            )
             .outerjoin(Room, Room.room_type_id == RoomType.id)
             .outerjoin(InvoiceDetail, InvoiceDetail.room_id == Room.id)
             .outerjoin(Invoice, (Invoice.id == InvoiceDetail.invoice_id) &
@@ -422,11 +426,28 @@ def stats_revenue_by_room_type(month, year):
                        (func.extract('year', Invoice.payment_date) == year))
             .group_by(RoomType.id).all())
 
+    grand_total = sum(r[1] for r in rows)
+    result = []
+    for r in rows:
+        pct = round((r[1] / grand_total) * 100, 1) if grand_total > 0 else 0.0
+        result.append((r[0], r[1], r[2], pct))
+    return result
+
 
 def stats_occupancy_by_room(month, year):
-    return (db.session.query(Room.room_number, func.coalesce(func.sum(InvoiceDetail.stay_days), 0).label('total_days'))
+    rows = (db.session.query(
+                Room.room_number,
+                func.coalesce(func.sum(InvoiceDetail.stay_days), 0).label('total_days')
+            )
             .outerjoin(InvoiceDetail, InvoiceDetail.room_id == Room.id)
             .outerjoin(Invoice, (Invoice.id == InvoiceDetail.invoice_id) &
                        (func.extract('month', Invoice.payment_date) == month) &
                        (func.extract('year', Invoice.payment_date) == year))
             .group_by(Room.id).order_by(Room.room_number).all())
+
+    total_all_days = sum(o[1] for o in rows)
+    result = []
+    for o in rows:
+        pct = round((o[1] / total_all_days) * 100, 1) if total_all_days > 0 else 0.0
+        result.append((o[0], o[1], pct))
+    return result
