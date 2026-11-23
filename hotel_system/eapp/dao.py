@@ -307,3 +307,126 @@ def create_walkin_rental(staff_user_id, room_ids, expected_checkout, customer_id
     return rental
 
 
+# 5. Checkout, Pre-payment, Invoice Creation & Electronic Invoice Email
+def checkout_and_create_invoice(rental_id, staff_user_id, payment_method="Tiền mặt", is_prepaid=False):
+    rental = Rental.query.get(rental_id)
+    reg = get_current_regulation()
+    now = datetime.now()
+
+    if not rental or rental.status != RentalStatus.ACTIVE:
+        raise ValueError("Phiếu thuê phòng không tồn tại hoặc đã hoàn tất trả phòng!")
+
+    # Case 1: Already pre-paid earlier -> Now guest is checking out (only update room status & time)
+    if rental.invoice and not is_prepaid:
+        for rd in rental.rental_details:
+            rd.actual_checkout = now
+            rd.room.status = RoomStatus.CLEANING
+        rental.status = RentalStatus.PAID
+        db.session.commit()
+        return rental.invoice
+
+    if rental.invoice and is_prepaid:
+        raise ValueError("Phiếu thuê phòng này đã được thanh toán trước rồi!")
+
+    # Case 2: Calculate room charges and create invoice
+    all_stays = rental.stay_details
+    total_guests = len(all_stays)
+    has_foreign = any(s.customer.customer_type == CustomerType.FOREIGN for s in all_stays)
+    stay_days = calculate_stay_days(rental.checkin_date, rental.expected_checkout if is_prepaid else now)
+
+    invoice = Invoice(
+        payment_date=now,
+        total_room_amount=0.0,
+        deposit_deducted=rental.deposit_deducted,
+        final_amount=0.0,
+        payment_method=payment_method,
+        rental_id=rental.id,
+        staff_id=staff_user_id
+    )
+    db.session.add(invoice)
+    db.session.flush()
+
+    total_room_amount = 0.0
+    num_rooms = max(1, len(rental.rental_details))
+    guests_per_room = max(1, round(total_guests / num_rooms))
+
+    for rd in rental.rental_details:
+        if not is_prepaid:
+            rd.actual_checkout = now
+            rd.room.status = RoomStatus.CLEANING
+
+        room_stays = [s for s in all_stays if s.room_id == rd.room_id]
+        room_guest_count = len(room_stays) if room_stays else guests_per_room
+        room_has_foreign = any(s.customer.customer_type == CustomerType.FOREIGN for s in room_stays) if room_stays else has_foreign
+
+        calc = calculate_room_checkout(
+            base_price=rd.room.room_type.base_price,
+            stay_days=stay_days,
+            guest_count=room_guest_count,
+            has_foreign_guest=room_has_foreign,
+            regulation=reg
+        )
+        total_room_amount += calc['room_total']
+
+        inv_detail = InvoiceDetail(
+            invoice_id=invoice.id,
+            room_id=rd.room_id,
+            stay_days=calc['stay_days'],
+            applied_price=rd.room.room_type.base_price,
+            extra_guest_rate=calc['extra_guest_rate'],
+            guest_factor=calc['guest_factor'],
+            room_total=calc['room_total']
+        )
+        db.session.add(inv_detail)
+
+    invoice.total_room_amount = total_room_amount
+    invoice.final_amount = max(0.0, total_room_amount - rental.deposit_deducted)
+
+    if not is_prepaid:
+        rental.status = RentalStatus.PAID
+
+    db.session.commit()
+
+    primary_user = None
+    if rental.booking and rental.booking.customer:
+        primary_user = rental.booking.customer.user
+    elif all_stays:
+        primary_user = all_stays[0].customer.user
+
+    notifier = NotificationService()
+    if primary_user and primary_user.email:
+        notifier.send_invoice_email(primary_user.email, invoice, primary_user.full_name)
+
+    action_label = "THANH TOÁN TRƯỚC HÓA ĐƠN #" if is_prepaid else "THANH TOÁN HÓA ĐƠN #"
+    tele_msg = action_label + str(invoice.id) + "\n"
+    tele_msg += "Tổng tiền phòng: " + "{:,.0f}".format(invoice.total_room_amount) + " VNĐ\n"
+    tele_msg += "Thực thu: " + "{:,.0f}".format(invoice.final_amount) + " VNĐ (" + payment_method + ")"
+    notifier.send_telegram_notification(tele_msg)
+
+    return invoice
+
+
+# 6. Admin Statistics Queries
+def stats_rooms_by_type():
+    return (db.session.query(RoomType.id, RoomType.name, func.count(Room.id))
+            .outerjoin(Room, Room.room_type_id == RoomType.id)
+            .group_by(RoomType.id).all())
+
+
+def stats_revenue_by_room_type(month, year):
+    return (db.session.query(RoomType.name, func.coalesce(func.sum(InvoiceDetail.room_total), 0.0).label('revenue'))
+            .outerjoin(Room, Room.room_type_id == RoomType.id)
+            .outerjoin(InvoiceDetail, InvoiceDetail.room_id == Room.id)
+            .outerjoin(Invoice, (Invoice.id == InvoiceDetail.invoice_id) &
+                       (func.extract('month', Invoice.payment_date) == month) &
+                       (func.extract('year', Invoice.payment_date) == year))
+            .group_by(RoomType.id).all())
+
+
+def stats_occupancy_by_room(month, year):
+    return (db.session.query(Room.room_number, func.coalesce(func.sum(InvoiceDetail.stay_days), 0).label('total_days'))
+            .outerjoin(InvoiceDetail, InvoiceDetail.room_id == Room.id)
+            .outerjoin(Invoice, (Invoice.id == InvoiceDetail.invoice_id) &
+                       (func.extract('month', Invoice.payment_date) == month) &
+                       (func.extract('year', Invoice.payment_date) == year))
+            .group_by(Room.id).order_by(Room.room_number).all())
