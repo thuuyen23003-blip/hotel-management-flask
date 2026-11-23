@@ -3,7 +3,7 @@ from datetime import datetime
 from flask import render_template, request, redirect, session, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from eapp import app, dao, login, utils
-from eapp.models import AccountRole, CustomerType, Booking, Rental
+from eapp.models import AccountRole, CustomerType, Booking, Rental, Customer
 
 # update index room listing and authentication routes
 @app.route('/')
@@ -150,10 +150,12 @@ def reception_dashboard():
     all_rooms = dao.load_rooms(page=1)
     pending_bookings = Booking.query.filter_by(status='PENDING_CHECKIN').all()
     active_rentals = Rental.query.filter_by(status='ACTIVE').all()
+    customers = Customer.query.all()
     return render_template('reception.html',
                            rooms=all_rooms,
                            pending_bookings=pending_bookings,
-                           active_rentals=active_rentals)
+                           active_rentals=active_rentals,
+                           customers=customers)
 
 @app.route('/reception/checkin', methods=['POST'])
 @login_required
