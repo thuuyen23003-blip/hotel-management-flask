@@ -1,103 +1,124 @@
 {% extends 'admin/master.html' %}
 
 {% block body %}
-<h3 class="mt-3 mb-4 text-center">BÁO CÁO THỐNG KÊ DOANH THU &amp; MẬT ĐỘ PHÒNG (UC04)</h3>
+<div class="container-fluid mt-3 mb-5">
+    <h3 class="fw-bold mb-3">Thống Kê &amp; Báo Cáo Doanh Thu — Aurelia Hotel &amp; Suites</h3>
 
-<div class="card mb-4">
-    <div class="card-body">
-        <form class="row g-3 align-items-end" method="get">
-            <div class="col-md-4">
-                <label class="form-label fw-semibold">Chọn Tháng</label>
-                <input type="number" class="form-control" name="month" min="1" max="12" value="{{ selected_month }}" required>
-            </div>
-            <div class="col-md-4">
-                <label class="form-label fw-semibold">Chọn Năm</label>
-                <input type="number" class="form-control" name="year" min="2020" max="2030" value="{{ selected_year }}" required>
-            </div>
-            <div class="col-md-4 d-grid">
-                <button type="submit" class="btn btn-primary">Xem báo cáo thống kê</button>
-            </div>
-        </form>
-    </div>
-</div>
+    <form method="get" action="/admin/statsview/" class="row g-2 align-items-end mb-4">
+        <div class="col-auto">
+            <label class="form-label fw-semibold mb-1">Tháng:</label>
+            <select name="month" class="form-select form-select-sm">
+                {% for m in range(1, 13) %}
+                <option value="{{ m }}" {% if m == selected_month %}selected{% endif %}>Tháng {{ m }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-auto">
+            <label class="form-label fw-semibold mb-1">Năm:</label>
+            <input type="number" name="year" class="form-control form-control-sm" value="{{ selected_year }}" min="2020" max="2035">
+        </div>
+        <div class="col-auto">
+            <button type="submit" class="btn btn-primary btn-sm">Xem báo cáo</button>
+        </div>
+    </form>
 
-<div class="row mb-4">
-    <div class="col-md-5">
-        <div class="card h-100">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">1. Doanh thu theo loại phòng (Tháng {{ selected_month }}/{{ selected_year }})</h5>
+    <!-- 1. Báo cáo Doanh thu theo tháng -->
+    <div class="row mb-4">
+        <div class="col-md-7 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white fw-semibold">
+                    Báo Cáo Doanh Thu Theo Tháng (Tháng {{ selected_month }}/{{ selected_year }})
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-bordered table-hover align-middle mb-0">
+                        <thead class="table-light text-center">
+                            <tr>
+                                <th>STT</th>
+                                <th>Loại Phòng</th>
+                                <th>Doanh Thu</th>
+                                <th>Số Lượt Thuê</th>
+                                <th>Tỷ Lệ (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set ns = namespace(total_rev=0, total_cnt=0) %}
+                            {% for r in revenue_stats %}
+                            {% set ns.total_rev = ns.total_rev + (r or 0) %}
+                            {% set ns.total_cnt = ns.total_cnt + (r or 0) %}
+                            <tr>
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td class="fw-semibold">{{ r }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(r or 0) }} VNĐ</td>
+                                <td class="text-center">{{ r }}</td>
+                                <td class="text-center">{{ r }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-secondary fw-bold">
+                            <tr>
+                                <td colspan="2" class="text-end">Tổng doanh thu:</td>
+                                <td class="text-end text-danger">{{ "{:,.0f}".format(ns.total_rev) }} VNĐ</td>
+                                <td class="text-center">{{ ns.total_cnt }}</td>
+                                <td class="text-center">{{ '100%' if ns.total_rev > 0 else '0%' }}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
             </div>
-            <div class="card-body">
-                <table class="table table-bordered table-hover">
-                    <thead>
-                        <tr>
-                            <th>Loại phòng</th>
-                            <th class="text-end">Doanh thu</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for r in revenue_stats %}
-                        <tr>
-                            <td class="fw-bold">{{ r }}</td>
-                            <td class="text-end text-danger fw-semibold">{{ "{:,.0f}".format(r[2] or 0) }} VNĐ</td>
-                        </tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="2" class="text-center text-muted">Chưa có dữ liệu doanh thu trong tháng này</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        </div>
+
+        <div class="col-md-5 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-primary text-white fw-semibold">
+                    Biểu Đồ Doanh Thu Theo Loại Phòng
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="revenueChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
 
-    <div class="col-md-7">
-        <div class="card h-100">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">Biểu đồ doanh thu theo loại phòng</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="revenueChart"></canvas>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
-    <div class="col-md-5">
-        <div class="card h-100">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">2. Mật độ sử dụng phòng (Tháng {{ selected_month }}/{{ selected_year }})</h5>
-            </div>
-            <div class="card-body" style="max-height: 350px; overflow-y: auto;">
-                <table class="table table-bordered table-hover">
-                    <thead>
-                        <tr>
-                            <th>Số phòng</th>
-                            <th class="text-end">Số ngày thuê</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for o in occupancy_stats %}
-                        <tr>
-                            <td class="fw-bold">Phòng {{ o[0] }}</td>
-                            <td class="text-end">{{ o[1] or 0 }} ngày</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+    <!-- 2. Báo cáo Mật độ sử dụng phòng -->
+    <div class="row">
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-dark text-white fw-semibold">
+                    Báo Cáo Mật Độ Sử Dụng Phòng (Tháng {{ selected_month }}/{{ selected_year }})
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-bordered table-hover align-middle mb-0">
+                        <thead class="table-light text-center">
+                            <tr>
+                                <th>STT</th>
+                                <th>Phòng</th>
+                                <th>Số Ngày Thuê</th>
+                                <th>Tỷ Lệ (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for o in occupancy_stats %}
+                            <tr>
+                                <td class="text-center">{{ loop.index }}</td>
+                                <td class="text-center fw-bold">Phòng {{ o }}</td>
+                                <td class="text-center">{{ o }} ngày</td>
+                                <td class="text-center">{{ o }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="col-md-7">
-        <div class="card h-100">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">Biểu đồ mật độ sử dụng từng phòng</h5>
-            </div>
-            <div class="card-body">
-                <canvas id="occupancyChart"></canvas>
+        <div class="col-md-6 mb-3">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-success text-white fw-semibold">
+                    Biểu Đồ Mật Độ Sử Dụng Phòng
+                </div>
+                <div class="card-body d-flex align-items-center justify-content-center">
+                    <canvas id="occupancyChart"></canvas>
+                </div>
             </div>
         </div>
     </div>
@@ -107,18 +128,13 @@
 <script src="{{ url_for('static', filename='js/draw.js') }}"></script>
 <script>
     window.onload = function() {
-        let revData = [], revLabels = [];
-        {% for s in revenue_stats %}
-            revLabels.push('{{ s[1] }}');
-            revData.push({{ s[2] or 0 }});
-        {% endfor %}
-        drawChart(revData, revLabels, 'Doanh thu (VNĐ)', 'revenueChart', 'bar');
+        let revLabels = [{% for r in revenue_stats %}'{{ r }}',{% endfor %}];
+        let revData = [{% for r in revenue_stats %}{{ r or 0 }},{% endfor %}];
+        drawChart(revData, revLabels, 'Doanh thu (VNĐ)', 'revenueChart', 'pie');
 
-        let occData = [], occLabels = [];
-        {% for s in occupancy_stats %}
-            occLabels.push('Phòng {{ s[0] }}');
-            occData.push({{ s[1] or 0 }});
-        {% endfor %}
+        let occLabels = [{% for o in occupancy_stats %}'Phòng {{ o }}',{% endfor %}];
+        let occData = [{% for o in occupancy_stats %}{{ o or 0 }},{% endfor %}];
         drawChart(occData, occLabels, 'Số ngày thuê', 'occupancyChart', 'bar');
-    }
+    };
 </script>
+{% endblock %}

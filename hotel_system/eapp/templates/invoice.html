@@ -53,10 +53,11 @@
                             <div><strong>Điện thoại:</strong> {{ invoice.rental.booking.customer.user.phone }}</div>
                         {% elif invoice.rental.stay_details %}
                             <div><strong>Khách đại
-                                diện:</strong> {{ invoice.rental.stay_details.customer.user.full_name }}</div>
-                            <div><strong>Điện thoại:</strong> {{ invoice.rental.stay_details.customer.user.phone }}
+                                diện:</strong> {{ invoice.rental.stay_details[0].customer.user.full_name }}</div>
+                            <div><strong>Điện thoại:</strong> {{ invoice.rental.stay_details[0].customer.user.phone }}
                             </div>
                         {% endif %}
+
                         {% if copy_type == 'manager' %}
                             <div class="text-danger"><strong>Nhân viên thu
                                 ngân:</strong> {{ invoice.staff.user.full_name }} (ID: #{{ invoice.staff_id }})
