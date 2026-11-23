@@ -76,12 +76,9 @@
                     <div class="mb-3">
                         <label class="form-label fw-semibold">Khách hàng lưu trú (Chọn ít nhất 1) <span class="text-danger">*</span></label>
                         <select class="form-select" name="guest_ids" multiple required>
-                            {% for b in pending_bookings %}
-                            <option value="{{ b.customer_id }}">{{ b.customer.user.full_name }} ({{ b.customer.customer_type.name }})</option>
+                            {% for c in customers %}
+                            <option value="{{ c.user_id }}">{{ c.user.full_name }} - {{ c.user.identity_card }} ({{ c.customer_type.name }})</option>
                             {% endfor %}
-                            <option value="4">Le Minh Khach (DOMESTIC)</option>
-                            <option value="5">Tran Thi Mai (DOMESTIC)</option>
-                            <option value="6">Johnathan Smith (FOREIGN)</option>
                         </select>
                         <div class="form-text">Giữ phím Ctrl để chọn nhiều khách ở cùng phòng.</div>
                     </div>
