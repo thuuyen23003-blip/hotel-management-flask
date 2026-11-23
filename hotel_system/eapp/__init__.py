@@ -22,6 +22,12 @@ app.config['MAIL_DEFAULT_SENDER'] = ('Aurelia Hotel & Suites', 'thuuyen23003@gma
 app.config['TELEGRAM_BOT_TOKEN'] = '9262396677:AAEheB1LIMkdFs_dnCBo9ZTTWmCWUo6przw'
 app.config['TELEGRAM_CHAT_ID'] = '9242656093'
 
+# MoMo Sandbox Configuration
+app.config['MOMO_PARTNER_CODE'] = 'MOMO'
+app.config['MOMO_ACCESS_KEY'] = 'F8BBA842ECF85'
+app.config['MOMO_SECRET_KEY'] = 'K951B6PE1waDMi640xX08PD3vg6EkVlz'
+app.config['MOMO_ENDPOINT'] = 'https://momo.vn'
+
 db = SQLAlchemy(app=app)
 login = LoginManager(app=app)
 mail = Mail(app=app)
