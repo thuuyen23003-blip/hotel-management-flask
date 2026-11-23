@@ -1,6 +1,10 @@
 import requests
 from flask_mail import Message
 from eapp import app, mail
+import json
+import hmac
+import hashlib
+import uuid
 
 # add selected rooms summary and deposit calculation
 def summarize_selected_rooms(selected_rooms):
@@ -87,3 +91,55 @@ class NotificationService:
         except Exception as ex:
             print("Lỗi gửi Telegram:", ex)
             return False
+
+# add momo service payment link generator
+class MoMoService:
+    def create_payment_url(self, amount, order_info, redirect_url, ipn_url):
+        partner_code = app.config.get('MOMO_PARTNER_CODE')
+        access_key = app.config.get('MOMO_ACCESS_KEY')
+        secret_key = app.config.get('MOMO_SECRET_KEY')
+        endpoint = app.config.get('MOMO_ENDPOINT')
+
+        order_id = str(uuid.uuid4())
+        request_id = str(uuid.uuid4())
+        amount_str = str(int(amount))
+        request_type = "captureWallet"
+        extra_data = ""
+
+        raw_signature = (
+            "accessKey=" + access_key +
+            "&amount=" + amount_str +
+            "&extraData=" + extra_data +
+            "&ipnUrl=" + ipn_url +
+            "&orderId=" + order_id +
+            "&orderInfo=" + order_info +
+            "&partnerCode=" + partner_code +
+            "&redirectUrl=" + redirect_url +
+            "&requestId=" + request_id +
+            "&requestType=" + request_type
+        )
+
+        signature = hmac.new(
+            secret_key.encode('utf-8'),
+            raw_signature.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+
+        payload = {
+            'partnerCode': partner_code,
+            'partnerName': 'Aurelia Hotel',
+            'storeId': 'AureliaStore',
+            'requestId': request_id,
+            'amount': amount_str,
+            'orderId': order_id,
+            'orderInfo': order_info,
+            'redirectUrl': redirect_url,
+            'ipnUrl': ipn_url,
+            'lang': 'vi',
+            'extraData': extra_data,
+            'requestType': request_type,
+            'signature': signature
+        }
+
+        res = requests.post(endpoint, data=json.dumps(payload), headers={'Content-Type': 'application/json'})
+        return res.json()
