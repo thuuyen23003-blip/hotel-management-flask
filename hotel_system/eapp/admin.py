@@ -41,7 +41,8 @@ class RegulationView(ManagerAuthenticated):
     can_create = False
     can_delete = False
     edit_modal = True
-    column_list = ['max_guests', 'extra_guest_rate', 'foreign_guest_factor', 'max_hold_days', 'deposit_rate']
+    column_list = ['max_guests', 'extra_guest_rate', 'foreign_guest_factor', 'max_hold_days', 'deposit_rate', 'manager_id', 'updated_date']
+    form_excluded_columns = ['manager', 'updated_date']
     form_overrides = {
         'max_guests': IntegerField,
         'extra_guest_rate': FloatField,
@@ -49,6 +50,9 @@ class RegulationView(ManagerAuthenticated):
         'max_hold_days': IntegerField,
         'deposit_rate': FloatField
     }
+
+    def on_model_change(self, form, model, is_created):
+        model.manager_id = current_user.user_id
 
 
 class BaseManagerAuthenticated(BaseView):

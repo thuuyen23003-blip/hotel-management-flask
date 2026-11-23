@@ -151,6 +151,9 @@ class Regulation(db.Model):
     deposit_rate = Column(Float, default=0.2, nullable=False)
     max_hold_days = Column(Integer, default=28, nullable=False)
     updated_date = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    manager_id = Column(Integer, ForeignKey('manager.staff_id'), nullable=True)
+
+    manager = relationship('Manager', backref='regulations')
 
 
 # 4. Booking & BookingDetail
@@ -254,15 +257,38 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
 
-        if not Regulation.query.first():
-            reg = Regulation(
-                max_guests=3,
-                extra_guest_rate=0.25,
-                foreign_guest_factor=1.5,
-                deposit_rate=0.2,
-                max_hold_days=28
-            )
-            db.session.add(reg)
+        if not Account.query.first():
+            pw_hash = hashlib.md5("123456".encode('utf-8')).hexdigest()
+
+            u_mgr = User(full_name="Trần Võ Thị Thu Uyên", identity_card="079303000001", phone="0901000001", email="manager@aureliahotel.vn")
+            u_stf = User(full_name="Lễ Tân Aurelia", identity_card="079303000002", phone="0901000002", email="reception@aureliahotel.vn")
+            u_cus = User(full_name="Nguyễn Minh Anh", identity_card="079303000003", phone="0901000003", email="khachhang@gmail.com")
+            db.session.add_all([u_mgr, u_stf, u_cus])
+            db.session.flush()
+
+            stf_mgr = Staff(user_id=u_mgr.id, position="Quản lý khách sạn")
+            stf_rec = Staff(user_id=u_stf.id, position="Nhân viên lễ tân")
+            cus_dom = Customer(user_id=u_cus.id, customer_type=CustomerType.DOMESTIC)
+            db.session.add_all([stf_mgr, stf_rec, cus_dom])
+            db.session.flush()
+
+            mgr = Manager(staff_id=u_mgr.id, department="Ban Giám Đốc Aurelia")
+            acc_mgr = Account(username="admin", password=pw_hash, role=AccountRole.MANAGER, user_id=u_mgr.id)
+            acc_stf = Account(username="staff", password=pw_hash, role=AccountRole.STAFF, user_id=u_stf.id)
+            acc_cus = Account(username="customer", password=pw_hash, role=AccountRole.CUSTOMER, user_id=u_cus.id)
+            db.session.add_all([mgr, acc_mgr, acc_stf, acc_cus])
+            db.session.flush()
+
+            if not Regulation.query.first():
+                reg = Regulation(
+                    max_guests=3,
+                    extra_guest_rate=0.25,
+                    foreign_guest_factor=1.5,
+                    deposit_rate=0.2,
+                    max_hold_days=28,
+                    manager_id=mgr.staff_id
+                )
+                db.session.add(reg)
 
         if not RoomType.query.first():
             rt1 = RoomType(name="Standard Single", base_price=500000, description="Phòng tiêu chuẩn 1 giường đơn, đầy đủ tiện nghi.")
@@ -291,27 +317,6 @@ if __name__ == '__main__':
                 Room(room_number="404", room_type_id=rt4.id)
             ]
             db.session.add_all(sample_rooms)
-
-        if not Account.query.first():
-            pw_hash = hashlib.md5("123456".encode('utf-8')).hexdigest()
-
-            u_mgr = User(full_name="Trần Võ Thị Thu Uyên", identity_card="079303000001", phone="0901000001", email="manager@aureliahotel.vn")
-            u_stf = User(full_name="Lễ Tân Aurelia", identity_card="079303000002", phone="0901000002", email="reception@aureliahotel.vn")
-            u_cus = User(full_name="Nguyễn Minh Anh", identity_card="079303000003", phone="0901000003", email="khachhang@gmail.com")
-            db.session.add_all([u_mgr, u_stf, u_cus])
-            db.session.flush()
-
-            stf_mgr = Staff(user_id=u_mgr.id, position="Quản lý khách sạn")
-            stf_rec = Staff(user_id=u_stf.id, position="Nhân viên lễ tân")
-            cus_dom = Customer(user_id=u_cus.id, customer_type=CustomerType.DOMESTIC)
-            db.session.add_all([stf_mgr, stf_rec, cus_dom])
-            db.session.flush()
-
-            mgr = Manager(staff_id=u_mgr.id, department="Ban Giám Đốc Aurelia")
-            acc_mgr = Account(username="admin", password=pw_hash, role=AccountRole.MANAGER, user_id=u_mgr.id)
-            acc_stf = Account(username="staff", password=pw_hash, role=AccountRole.STAFF, user_id=u_stf.id)
-            acc_cus = Account(username="customer", password=pw_hash, role=AccountRole.CUSTOMER, user_id=u_cus.id)
-            db.session.add_all([mgr, acc_mgr, acc_stf, acc_cus])
 
         db.session.commit()
         print("Database Aurelia Hotel & Suites initialized successfully!")
