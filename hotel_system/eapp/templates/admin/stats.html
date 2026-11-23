@@ -103,3 +103,25 @@
     </div>
 </div>
 
+<script src="https://jsdelivr.net"></script>
+<script src="{{ url_for('static', filename='js/stats.js') }}"></script>
+<script>
+    window.onload = function() {
+        let revLabels = [];
+        let revData = [];
+        {% for r in revenue_stats %}
+        revLabels.push('{{ r[1] }}');
+        revData.push({{ r[2] or 0 }});
+        {% endfor %}
+        drawChart(revData, revLabels, 'Doanh thu (VNĐ)', 'revenueChart', 'bar');
+
+        let occLabels = [];
+        let occData = [];
+        {% for o in occupancy_stats %}
+        occLabels.push('Phòng {{ o[0] }}');
+        occData.push({{ o[1] or 0 }});
+        {% endfor %}
+        drawChart(occData, occLabels, 'Số ngày thuê', 'occupancyChart', 'bar');
+    }
+</script>
+{% endblock %}
