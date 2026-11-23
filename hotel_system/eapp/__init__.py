@@ -1,12 +1,16 @@
+import os
+from dotenv import load_dotenv
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_mail import Mail
 import cloudinary
 
+load_dotenv()
+
 app = Flask(__name__)
-app.secret_key = '&*(^UIGKJHJKHG&TFUTFYHGIUG&T*TUITGUIG&F'
-app.config["SQLALCHEMY_DATABASE_URI"] = "mysql+pymysql://root:root1234@localhost/hoteldb?charset=utf8mb4"
+app.secret_key = os.environ.get('SECRET_KEY')
+app.config["SQLALCHEMY_DATABASE_URI"] = os.environ.get('DATABASE_URI')
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config['PAGE_SIZE'] = 8
 
@@ -14,23 +18,27 @@ app.config['PAGE_SIZE'] = 8
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
 app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'thuuyen23003@gmail.com'
-app.config['MAIL_PASSWORD'] = 'pqifykrsvtmwuyga'
-app.config['MAIL_DEFAULT_SENDER'] = ('Aurelia Hotel & Suites', 'thuuyen23003@gmail.com')
+app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
+app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
+app.config['MAIL_DEFAULT_SENDER'] = ('Aurelia Hotel & Suites', os.environ.get('MAIL_USERNAME'))
 
 # Telegram Bot Configuration
-app.config['TELEGRAM_BOT_TOKEN'] = '9262396677:AAEheB1LIMkdFs_dnCBo9ZTTWmCWUo6przw'
-app.config['TELEGRAM_CHAT_ID'] = '9242656093'
+app.config['TELEGRAM_BOT_TOKEN'] = os.environ.get('TELEGRAM_BOT_TOKEN')
+app.config['TELEGRAM_CHAT_ID'] = os.environ.get('TELEGRAM_CHAT_ID')
 
 # MoMo Sandbox Configuration
-app.config['MOMO_PARTNER_CODE'] = 'MOMO'
-app.config['MOMO_ACCESS_KEY'] = 'F8BBA842ECF85'
-app.config['MOMO_SECRET_KEY'] = 'K951B6PE1waDMi640xX08PD3vg6EkVlz'
-app.config['MOMO_ENDPOINT'] = 'https://test-payment.momo.vn/v2/gateway/api/create'
+app.config['MOMO_PARTNER_CODE'] = os.environ.get('MOMO_PARTNER_CODE')
+app.config['MOMO_ACCESS_KEY'] = os.environ.get('MOMO_ACCESS_KEY')
+app.config['MOMO_SECRET_KEY'] = os.environ.get('MOMO_SECRET_KEY')
+app.config['MOMO_ENDPOINT'] = os.environ.get('MOMO_ENDPOINT', 'https://test-payment.' + 'momo.vn/v2/gateway/api/create')
 
 db = SQLAlchemy(app=app)
 login = LoginManager(app=app)
 mail = Mail(app=app)
 
 # Cloudinary Configuration
-cloudinary.config(cloud_name='isbvimga', api_key='513263947619764', api_secret='T34iggHkQ6h1vHwb0J3zVL4hQbc')
+cloudinary.config(
+    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+    api_key=os.environ.get('CLOUDINARY_API_KEY'),
+    api_secret=os.environ.get('CLOUDINARY_API_SECRET')
+)
