@@ -1,302 +1,182 @@
-from flask_login import UserMixin
-from sqlalchemy import Column, Integer, String, Float, Boolean, ForeignKey, Enum, Date, DateTime
-from sqlalchemy.orm import relationship
-from eapp import db, app
-from enum import Enum as PyEnum
-from datetime import datetime, date
+import enum
 import hashlib
+from datetime import datetime
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Enum
+from sqlalchemy.orm import relationship
+from flask_login import UserMixin
+from eapp import app, db
 
-class BaseModel(db.Model):
-    __abstract__ = True
-    id = Column(Integer, primary_key=True, autoincrement=True)
 
-# 1. Enumerations:
+# 1. Enumerations
+class AccountRole(enum.Enum):
+    CUSTOMER = "Khách hàng"
+    STAFF = "Nhân viên"
+    MANAGER = "Quản lý"
 
-class AccountRole(PyEnum):
-    CUSTOMER = 1
-    STAFF = 2
-    MANAGER = 3
 
-class RoomStatus(PyEnum):
-    AVAILABLE = "AVAILABLE"
-    BOOKED = "BOOKED"
-    OCCUPIED = "OCCUPIED"
-    CLEANING = "CLEANING"
+class CustomerType(enum.Enum):
+    DOMESTIC = "Nội địa"
+    FOREIGN = "Nước ngoài"
 
-class BookingStatus(PyEnum):
-    PENDING_CHECKIN = "PENDING_CHECKIN"
-    CHECKED_IN = "CHECKED_IN"
-    EXPIRED_CANCELLED = "EXPIRED_CANCELLED"
-    CANCELLED = "CANCELLED"
 
-class RentalStatus(PyEnum):
-    ACTIVE = "ACTIVE"
-    PAID = "PAID"
+class RoomStatus(enum.Enum):
+    AVAILABLE = "Trống"
+    BOOKED = "Đã đặt"
+    OCCUPIED = "Đang thuê"
+    CLEANING = "Đang dọn"
 
-class CustomerType(PyEnum):
-    DOMESTIC = "DOMESTIC"
-    FOREIGN = "FOREIGN"
 
-# 2. Users:
+class BookingStatus(enum.Enum):
+    PENDING_CHECKIN = "Chờ nhận phòng"
+    CHECKED_IN = "Đã nhận phòng"
+    CANCELLED = "Đã hủy"
+    EXPIRED_CANCELLED = "Hủy do quá hạn"
 
-class User(BaseModel):
+
+class RentalStatus(enum.Enum):
+    ACTIVE = "Đang thuê"
+    PAID = "Đã thanh toán"
+
+
+# 2. User, Account & Role Inheritance (Joined Table Inheritance)
+class User(db.Model):
     __tablename__ = 'user'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
     full_name = Column(String(100), nullable=False)
-    identity_card = Column(String(20), unique=True, nullable=False)
-    phone = Column(String(20), nullable=False)
+    identity_card = Column(String(20), nullable=False, unique=True)
+    phone = Column(String(15), nullable=False)
     email = Column(String(100), nullable=True)
     address = Column(String(255), nullable=True)
     avatar = Column(String(255), default='/static/images/default-avatar.png')
 
-    account = relationship('Account', backref='user', uselist=False, lazy=True)
-    customer = relationship('Customer', backref='user', uselist=False, lazy=True)
-    staff = relationship('Staff', backref='user', uselist=False, lazy=True)
-    manager = relationship('Manager', backref='user', uselist=False, lazy=True)
+    account = relationship('Account', backref='user', uselist=False, cascade='all, delete-orphan')
+    customer = relationship('Customer', backref='user', uselist=False, cascade='all, delete-orphan')
+    staff = relationship('Staff', backref='user', uselist=False, cascade='all, delete-orphan')
 
     def __str__(self):
         return self.full_name
 
-# 3. Roles:
 
-class Account(BaseModel, UserMixin):
+class Account(db.Model, UserMixin):
     __tablename__ = 'account'
-    username = Column(String(50), unique=True, nullable=False)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(50), nullable=False, unique=True)
     password = Column(String(100), nullable=False)
     role = Column(Enum(AccountRole), default=AccountRole.CUSTOMER, nullable=False)
     active = Column(Boolean, default=True)
-    user_id = Column(Integer, ForeignKey('user.id'), unique=True, nullable=False)
+    created_date = Column(DateTime, default=datetime.now)
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False, unique=True)
 
-    @property
-    def user_role(self):
-        return self.role
+    def __str__(self):
+        return self.username
 
-    @property
-    def is_active(self):
-        return self.active
 
 class Customer(db.Model):
     __tablename__ = 'customer'
+
     user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
     customer_type = Column(Enum(CustomerType), default=CustomerType.DOMESTIC, nullable=False)
 
     bookings = relationship('Booking', backref='customer', lazy=True)
     stay_details = relationship('StayDetail', backref='customer', lazy=True)
 
+    def __str__(self):
+        return self.user.full_name if self.user else str(self.user_id)
+
+
 class Staff(db.Model):
     __tablename__ = 'staff'
+
     user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-    position = Column(String(100), default='Receptionist', nullable=False)
+    position = Column(String(50), nullable=False)
 
     rentals = relationship('Rental', backref='staff', lazy=True)
     invoices = relationship('Invoice', backref='staff', lazy=True)
+    manager = relationship('Manager', backref='staff', uselist=False, cascade='all, delete-orphan')
+
+    def __str__(self):
+        return self.user.full_name if self.user else str(self.user_id)
+
 
 class Manager(db.Model):
     __tablename__ = 'manager'
-    user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-    appointed_date = Column(Date, default=date.today, nullable=False)
 
-# 4. Rooms:
+    staff_id = Column(Integer, ForeignKey('staff.user_id'), primary_key=True)
+    department = Column(String(100), default="Quản lý điều hành")
 
-class RoomType(BaseModel):
+
+# 3. RoomType, Room & Regulation
+class RoomType(db.Model):
     __tablename__ = 'room_type'
-    name = Column(String(50), unique=True, nullable=False)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(100), nullable=False, unique=True)
     base_price = Column(Float, nullable=False)
     description = Column(String(255), nullable=True)
-    image = Column(String(255), default='/static/images/default-room.png')
+    image = Column(String(255), default='/static/images/default-room.jpg')
 
     rooms = relationship('Room', backref='room_type', lazy=True)
 
     def __str__(self):
         return self.name
 
-class Room(BaseModel):
+
+class Room(db.Model):
     __tablename__ = 'room'
-    room_number = Column(String(10), unique=True, nullable=False)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    room_number = Column(String(10), nullable=False, unique=True)
     status = Column(Enum(RoomStatus), default=RoomStatus.AVAILABLE, nullable=False)
-    image = Column(String(255), default='/static/images/default-room.png')
+    note = Column(String(255), nullable=True)
     room_type_id = Column(Integer, ForeignKey('room_type.id'), nullable=False)
 
+    booking_details = relationship('BookingDetail', backref='room', lazy=True)
+    rental_details = relationship('RentalDetail', backref='room', lazy=True)
+    invoice_details = relationship('InvoiceDetail', backref='room', lazy=True)
+    stay_details = relationship('StayDetail', backref='room', lazy=True)
+
     def __str__(self):
-        return "Room " + str(self.room_number)
+        return "Phòng " + self.room_number
 
-# 5. Regulations:
 
-class Regulation(BaseModel):
+class Regulation(db.Model):
     __tablename__ = 'regulation'
-    max_guests = Column(Integer, nullable=False)
-    extra_guest_rate = Column(Float, nullable=False)
-    foreign_guest_factor = Column(Float, nullable=False)
-    max_hold_days = Column(Integer, nullable=False)
-    deposit_rate = Column(Float, nullable=False)
 
-# 6. Bookings:
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    max_guests = Column(Integer, default=3, nullable=False)
+    extra_guest_rate = Column(Float, default=0.25, nullable=False)
+    foreign_guest_factor = Column(Float, default=1.5, nullable=False)
+    deposit_rate = Column(Float, default=0.2, nullable=False)
+    max_hold_days = Column(Integer, default=28, nullable=False)
+    updated_date = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
-class Booking(BaseModel):
+
+# 4. Booking & BookingDetail
+class Booking(db.Model):
     __tablename__ = 'booking'
-    booking_date = Column(DateTime, default=datetime.now)
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    booking_date = Column(DateTime, default=datetime.now, nullable=False)
     expected_checkin = Column(DateTime, nullable=False)
     expected_checkout = Column(DateTime, nullable=False)
-    total_estimated = Column(Float, nullable=False)
-    deposit_amount = Column(Float, nullable=False)
-    status = Column(Enum(BookingStatus), default=BookingStatus.PENDING_CHECKIN)
+    total_estimated = Column(Float, default=0.0, nullable=False)
+    deposit_amount = Column(Float, default=0.0, nullable=False)
+    status = Column(Enum(BookingStatus), default=BookingStatus.PENDING_CHECKIN, nullable=False)
     customer_id = Column(Integer, ForeignKey('customer.user_id'), nullable=False)
 
-    details = relationship('BookingDetail', backref='booking', lazy=True)
+    details = relationship('BookingDetail', backref='booking', lazy=True, cascade='all, delete-orphan')
     stay_details = relationship('StayDetail', backref='booking', lazy=True)
-    rental = relationship('Rental', backref='booking', uselist=False, lazy=True)
+    rental = relationship('Rental', backref='booking', uselist=False)
 
-class BookingDetail(BaseModel):
+
+class BookingDetail(db.Model):
     __tablename__ = 'booking_detail'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
     booking_id = Column(Integer, ForeignKey('booking.id'), nullable=False)
     room_id = Column(Integer, ForeignKey('room.id'), nullable=False)
     price_at_booking = Column(Float, nullable=False)
     room_deposit = Column(Float, nullable=False)
 
-    room = relationship('Room', lazy=True)
-
-# 7. Rentals:
-
-class Rental(BaseModel):
-    __tablename__ = 'rental'
-    created_date = Column(DateTime, default=datetime.now)
-    checkin_date = Column(DateTime, nullable=False)
-    expected_checkout = Column(DateTime, nullable=False)
-    deposit_deducted = Column(Float, default=0.0)
-    status = Column(Enum(RentalStatus), default=RentalStatus.ACTIVE)
-    booking_id = Column(Integer, ForeignKey('booking.id'), nullable=True)
-    staff_id = Column(Integer, ForeignKey('staff.user_id'), nullable=False)
-
-    rental_details = relationship('RentalDetail', backref='rental', lazy=True)
-    stay_details = relationship('StayDetail', backref='rental', lazy=True)
-    invoice = relationship('Invoice', backref='rental', uselist=False, lazy=True)
-
-class RentalDetail(BaseModel):
-    __tablename__ = 'rental_detail'
-    rental_id = Column(Integer, ForeignKey('rental.id'), nullable=False)
-    room_id = Column(Integer, ForeignKey('room.id'), nullable=False)
-    actual_checkout = Column(DateTime, nullable=True)
-
-    room = relationship('Room', lazy=True)
-
-class StayDetail(BaseModel):
-    __tablename__ = 'stay_detail'
-    rental_id = Column(Integer, ForeignKey('rental.id'), nullable=True)
-    booking_id = Column(Integer, ForeignKey('booking.id'), nullable=True)
-    room_id = Column(Integer, ForeignKey('room.id'), nullable=True)
-    customer_id = Column(Integer, ForeignKey('customer.user_id'), nullable=False)
-
-    room = relationship('Room', lazy=True)
-
-# 8. Invoices:
-
-class Invoice(BaseModel):
-    __tablename__ = 'invoice'
-    payment_date = Column(DateTime, default=datetime.now)
-    total_room_amount = Column(Float, nullable=False)
-    deposit_deducted = Column(Float, default=0.0)
-    final_amount = Column(Float, nullable=False)
-    payment_method = Column(String(50), nullable=False)
-    rental_id = Column(Integer, ForeignKey('rental.id'), unique=True, nullable=False)
-    staff_id = Column(Integer, ForeignKey('staff.user_id'), nullable=False)
-
-    details = relationship('InvoiceDetail', backref='invoice', lazy=True)
-
-class InvoiceDetail(BaseModel):
-    __tablename__ = 'invoice_detail'
-    invoice_id = Column(Integer, ForeignKey('invoice.id'), nullable=False)
-    room_id = Column(Integer, ForeignKey('room.id'), nullable=False)
-    stay_days = Column(Integer, nullable=False)
-    applied_price = Column(Float, nullable=False)
-    extra_guest_rate = Column(Float, default=0.0)
-    guest_factor = Column(Float, default=1.0)
-    room_total = Column(Float, nullable=False)
-
-    room = relationship('Room', lazy=True)
-
-# 9. Seed data:
-
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-        if not Regulation.query.first():
-            db.session.add(Regulation(
-                max_guests=3,
-                extra_guest_rate=0.25,
-                foreign_guest_factor=1.5,
-                max_hold_days=28,
-                deposit_rate=0.20
-            ))
-
-            # 1. Create 4 standard hotel room types for Aurelia Hotel & Suites
-            rt1 = RoomType(
-                name='Standard',
-                base_price=500000,
-                description='Phòng tiêu chuẩn đầy đủ tiện nghi cơ bản (22m²)',
-                image='/static/images/standard-room.png'
-            )
-            rt2 = RoomType(
-                name='Superior',
-                base_price=700000,
-                description='Phòng nâng cấp có cửa sổ lớn thoáng mát (30m²)',
-                image='/static/images/superior-room.png'
-            )
-            rt3 = RoomType(
-                name='Deluxe',
-                base_price=1000000,
-                description='Phòng cao cấp tầng cao, tầm nhìn đẹp (38m²)',
-                image='/static/images/deluxe-room.png'
-            )
-            rt4 = RoomType(
-                name='Family Room',
-                base_price=1300000,
-                description='Phòng gia đình rộng rãi bố trí 2 giường lớn (48m²)',
-                image='/static/images/family-room.png'
-            )
-            db.session.add_all([rt1, rt2, rt3, rt4])
-            db.session.commit()
-
-            # 2. Create 16 rooms across 4 floors
-            rooms = []
-            for i in range(1, 5):
-                rooms.append(Room(room_number=str(100 + i), room_type_id=rt1.id, image=rt1.image))
-                rooms.append(Room(room_number=str(200 + i), room_type_id=rt2.id, image=rt2.image))
-                rooms.append(Room(room_number=str(300 + i), room_type_id=rt3.id, image=rt3.image))
-                rooms.append(Room(room_number=str(400 + i), room_type_id=rt4.id, image=rt4.image))
-            db.session.add_all(rooms)
-
-            # 3. Create 6 sample accounts (Password: 123456)
-            pw = hashlib.md5('123456'.encode('utf-8')).hexdigest()
-
-            u_mgr = User(full_name='Tran Vo Thi Thu Uyen', identity_card='079303000001',
-                         phone='0901234561', email='manager@aureliahotel.vn', address='Ho Chi Minh City')
-            u_stf1 = User(full_name='Nguyen Van A', identity_card='079303000002',
-                          phone='0901234562', email='staff1@aureliahotel.vn', address='Ho Chi Minh City')
-            u_stf2 = User(full_name='Pham Thi B', identity_card='079303000003',
-                          phone='0901234563', email='staff2@aureliahotel.vn', address='Ho Chi Minh City')
-            u_cus1 = User(full_name='Le Minh C', identity_card='079303000004',
-                          phone='0901234564', email='customer1@gmail.com', address='Hanoi')
-            u_cus2 = User(full_name='Tran Thi D', identity_card='079303000005',
-                          phone='0901234565', email='customer2@gmail.com', address='Da Nang')
-            u_for = User(full_name='Johnathan Smith', identity_card='P12345678',
-                         phone='0901234566', email='john.smith@gmail.com', address='New York, USA')
-
-            db.session.add_all([u_mgr, u_stf1, u_stf2, u_cus1, u_cus2, u_for])
-            db.session.commit()
-
-            db.session.add_all([
-                Manager(user_id=u_mgr.id),
-                Staff(user_id=u_stf1.id, position='Morning Receptionist'),
-                Staff(user_id=u_stf2.id, position='Evening Receptionist'),
-                Customer(user_id=u_cus1.id, customer_type=CustomerType.DOMESTIC),
-                Customer(user_id=u_cus2.id, customer_type=CustomerType.DOMESTIC),
-                Customer(user_id=u_for.id, customer_type=CustomerType.FOREIGN),
-
-                Account(username='manager', password=pw, role=AccountRole.MANAGER, user_id=u_mgr.id),
-                Account(username='staff1', password=pw, role=AccountRole.STAFF, user_id=u_stf1.id),
-                Account(username='staff2', password=pw, role=AccountRole.STAFF, user_id=u_stf2.id),
-                Account(username='customer1', password=pw, role=AccountRole.CUSTOMER, user_id=u_cus1.id),
-                Account(username='customer2', password=pw, role=AccountRole.CUSTOMER, user_id=u_cus2.id),
-                Account(username='foreign_guest', password=pw, role=AccountRole.CUSTOMER, user_id=u_for.id)
-            ])
-            db.session.commit()
-            print("Successfully initialized 15 tables and seed data for Aurelia Hotel & Suites!")
