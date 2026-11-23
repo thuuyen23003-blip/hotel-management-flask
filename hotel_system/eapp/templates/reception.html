@@ -25,6 +25,9 @@
                         <span class="badge bg-danger">Đang thuê</span>
                         {% else %}
                         <span class="badge bg-secondary">Đang dọn</span>
+                        <form method="post" action="/reception/clean-room/{{ r.id }}" class="mt-2">
+                            <button type="submit" class="btn btn-sm btn-outline-success">Hoàn tất dọn</button>
+                        </form>
                         {% endif %}
                     </div>
                 </div>
