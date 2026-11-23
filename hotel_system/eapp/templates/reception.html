@@ -6,36 +6,81 @@
 <h3 class="mb-4">QUẢN LÝ QUẦY LỄ TÂN</h3>
 
 <div class="card shadow-sm mb-4">
-    <div class="card-header bg-dark text-white">
+    <div class="card-header bg-dark text-white d-flex flex-wrap justify-content-between align-items-center gap-2">
         <h5 class="mb-0">Sơ đồ trạng thái phòng hiện tại</h5>
+        <div class="d-flex flex-wrap align-items-center gap-2">
+            <span class="badge bg-secondary">Trống</span>
+            <span class="badge bg-danger">Đã đặt</span>
+            <span class="badge bg-success">Đang thuê</span>
+            <span class="badge bg-primary">Đang dọn</span>
+            <select id="floorFilter" class="form-select form-select-sm w-auto ms-2" onchange="filterRoomsByFloor()">
+                <option value="ALL">Tất cả các tầng ({{ rooms|length }} phòng)</option>
+                {% for f in floors %}
+                <option value="{{ f }}">Tầng {{ f }}</option>
+                {% endfor %}
+            </select>
+        </div>
     </div>
     <div class="card-body">
-        <div class="row">
+        <div class="row" id="roomMapGrid">
             {% for r in rooms %}
-            <div class="col-md-2 col-sm-4 col-6 mb-3">
-                <div class="card text-center h-100 border">
+            <div class="col-md-2 col-sm-4 col-6 mb-3 room-card-item" data-floor="{{ r.room_number[0] }}">
+                {% if r.status.name == 'AVAILABLE' %}
+                <div class="card text-center h-100 border-secondary bg-light">
                     <div class="card-body p-2">
                         <h6 class="fw-bold mb-1">Phòng {{ r.room_number }}</h6>
                         <p class="text-muted small mb-1">{{ r.room_type.name }}</p>
-                        {% if r.status.name == 'AVAILABLE' %}
-                        <span class="badge bg-success">Trống</span>
-                        {% elif r.status.name == 'BOOKED' %}
-                        <span class="badge bg-warning text-dark">Đã đặt</span>
-                        {% elif r.status.name == 'OCCUPIED' %}
-                        <span class="badge bg-danger">Đang thuê</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Đang dọn</span>
-                        <form method="post" action="/reception/clean-room/{{ r.id }}" class="mt-2">
-                            <button type="submit" class="btn btn-sm btn-outline-success">Hoàn tất dọn</button>
-                        </form>
-                        {% endif %}
+                        <span class="badge bg-secondary">Trống</span>
                     </div>
                 </div>
+                {% elif r.status.name == 'BOOKED' %}
+                <div class="card text-center h-100 border-danger bg-danger bg-opacity-10">
+                    <div class="card-body p-2">
+                        <h6 class="fw-bold text-danger mb-1">Phòng {{ r.room_number }}</h6>
+                        <p class="text-muted small mb-1">{{ r.room_type.name }}</p>
+                        <span class="badge bg-danger">Đã đặt</span>
+                    </div>
+                </div>
+                {% elif r.status.name == 'OCCUPIED' %}
+                <div class="card text-center h-100 border-success bg-success bg-opacity-10">
+                    <div class="card-body p-2">
+                        <h6 class="fw-bold text-success mb-1">Phòng {{ r.room_number }}</h6>
+                        <p class="text-muted small mb-1">{{ r.room_type.name }}</p>
+                        <span class="badge bg-success">Đang thuê</span>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card text-center h-100 border-primary bg-primary bg-opacity-10">
+                    <div class="card-body p-2">
+                        <h6 class="fw-bold text-primary mb-1">Phòng {{ r.room_number }}</h6>
+                        <p class="text-muted small mb-1">{{ r.room_type.name }}</p>
+                        <span class="badge bg-primary">Đang dọn</span>
+                        <form method="post" action="/reception/clean-room/{{ r.id }}" class="mt-2">
+                            <button type="submit" class="btn btn-sm btn-outline-primary">Hoàn tất dọn</button>
+                        </form>
+                    </div>
+                </div>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
     </div>
 </div>
+
+<script>
+function filterRoomsByFloor() {
+    let selectedFloor = document.getElementById('floorFilter').value;
+    let cards = document.getElementsByClassName('room-card-item');
+    for (let card of cards) {
+        if (selectedFloor === 'ALL' || card.getAttribute('data-floor') === selectedFloor) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    }
+}
+</script>
+
 
 <div class="row">
     <div class="col-md-5 mb-4">

@@ -237,6 +237,7 @@ def reception_dashboard():
         return redirect('/')
 
     all_rooms = Room.query.order_by(Room.room_number).all()
+    floors = sorted(list(set(r.room_number[0] for r in all_rooms if r.room_number)))
     available_rooms = Room.query.filter_by(status=RoomStatus.AVAILABLE).order_by(Room.room_number).all()
     pending_bookings = Booking.query.filter_by(status=BookingStatus.PENDING_CHECKIN).all()
     active_rentals = Rental.query.filter_by(status=RentalStatus.ACTIVE).all()
@@ -244,6 +245,7 @@ def reception_dashboard():
 
     return render_template('reception.html',
                            rooms=all_rooms,
+                           floors=floors,
                            available_rooms=available_rooms,
                            pending_bookings=pending_bookings,
                            active_rentals=active_rentals,
