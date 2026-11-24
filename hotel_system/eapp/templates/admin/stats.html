@@ -43,14 +43,14 @@
                         <tbody>
                             {% set ns = namespace(total_rev=0, total_cnt=0) %}
                             {% for r in revenue_stats %}
-                            {% set ns.total_rev = ns.total_rev + (r or 0) %}
-                            {% set ns.total_cnt = ns.total_cnt + (r or 0) %}
+                            {% set ns.total_rev = ns.total_rev + (r[1] or 0) %}
+                            {% set ns.total_cnt = ns.total_cnt + (r[2] or 0) %}
                             <tr>
                                 <td class="text-center">{{ loop.index }}</td>
-                                <td class="fw-semibold">{{ r }}</td>
-                                <td class="text-end">{{ "{:,.0f}".format(r or 0) }} VNĐ</td>
-                                <td class="text-center">{{ r }}</td>
-                                <td class="text-center">{{ r }}%</td>
+                                <td class="fw-semibold">{{ r[0] }}</td>
+                                <td class="text-end">{{ "{:,.0f}".format(r[1] or 0) }} VNĐ</td>
+                                <td class="text-center">{{ r[2] }}</td>
+                                <td class="text-center">{{ r[3] }}%</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -100,9 +100,9 @@
                             {% for o in occupancy_stats %}
                             <tr>
                                 <td class="text-center">{{ loop.index }}</td>
-                                <td class="text-center fw-bold">Phòng {{ o }}</td>
-                                <td class="text-center">{{ o }} ngày</td>
-                                <td class="text-center">{{ o }}%</td>
+                                <td class="text-center fw-bold">Phòng {{ o[0] }}</td>
+                                <td class="text-center">{{ o[1] }} ngày</td>
+                                <td class="text-center">{{ o[2] }}%</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -124,16 +124,16 @@
     </div>
 </div>
 
-<script src="https://jsdelivr.net"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
 <script src="{{ url_for('static', filename='js/draw.js') }}"></script>
 <script>
     window.onload = function() {
-        let revLabels = [{% for r in revenue_stats %}'{{ r }}',{% endfor %}];
-        let revData = [{% for r in revenue_stats %}{{ r or 0 }},{% endfor %}];
+        let revLabels = [{% for r in revenue_stats %}'{{ r[0] }}',{% endfor %}];
+        let revData = [{% for r in revenue_stats %}{{ r[1] or 0 }},{% endfor %}];
         drawChart(revData, revLabels, 'Doanh thu (VNĐ)', 'revenueChart', 'pie');
 
-        let occLabels = [{% for o in occupancy_stats %}'Phòng {{ o }}',{% endfor %}];
-        let occData = [{% for o in occupancy_stats %}{{ o or 0 }},{% endfor %}];
+        let occLabels = [{% for o in occupancy_stats %}'Phòng {{ o[0] }}',{% endfor %}];
+        let occData = [{% for o in occupancy_stats %}{{ o[1] or 0 }},{% endfor %}];
         drawChart(occData, occLabels, 'Số ngày thuê', 'occupancyChart', 'bar');
     };
 </script>

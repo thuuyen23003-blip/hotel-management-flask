@@ -44,6 +44,17 @@
                         <div><strong>Mã phiếu thuê:</strong> #{{ invoice.rental_id }}</div>
                         <div><strong>Nhận phòng thực
                             tế:</strong> {{ invoice.rental.checkin_date.strftime('%d/%m/%Y %H:%M') }}</div>
+                        {% set first_rd = invoice.rental.rental_details[0] %}
+                        <div><strong>Ngày trả phòng:</strong>
+                            {% if first_rd.actual_checkout %}
+                                {{ first_rd.actual_checkout.strftime('%d/%m/%Y %H:%M') }}
+                            {% else %}
+                                {{ invoice.rental.expected_checkout.strftime('%d/%m/%Y') }} (dự kiến)
+                            {% endif %}
+                        </div>
+                        <div><strong>Phòng thuê:</strong>
+                            {% for d in invoice.details %}{{ d.room.room_number }}{% if not loop.last %}, {% endif %}{% endfor %}
+                        </div>
                         <div><strong>Phương thức thanh toán:</strong> {{ invoice.payment_method }}</div>
                     </div>
                     <div class="col-md-6 text-md-end">
@@ -118,7 +129,7 @@
                                 <ul class="mb-1 ps-3">
                                     {% for s in invoice.rental.stay_details %}
                                         <li>{{ s.customer.user.full_name }} - CCCD: {{ s.customer.user.identity_card }}
-                                            ({{ s.customer.customer_type.value }})
+                                            ({{ s.customer.customer_type.name }})
                                         </li>
                                     {% endfor %}
                                 </ul>

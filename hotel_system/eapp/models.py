@@ -14,11 +14,6 @@ class AccountRole(enum.Enum):
     MANAGER = "Quản lý"
 
 
-class CustomerType(enum.Enum):
-    DOMESTIC = "Nội địa"
-    FOREIGN = "Nước ngoài"
-
-
 class RoomStatus(enum.Enum):
     AVAILABLE = "Trống"
     BOOKED = "Đã đặt"
@@ -48,7 +43,7 @@ class User(db.Model):
     phone = Column(String(15), nullable=False)
     email = Column(String(100), nullable=True)
     address = Column(String(255), nullable=True)
-    avatar = Column(String(255), default='/static/images/default-avatar.png')
+    avatar = Column(String(255), default='/static/images/default-avatar.jpg')
 
     account = relationship('Account', backref='user', uselist=False, cascade='all, delete-orphan')
     customer = relationship('Customer', backref='user', uselist=False, cascade='all, delete-orphan')
@@ -73,11 +68,25 @@ class Account(db.Model, UserMixin):
         return self.username
 
 
+# Loại khách (Nội địa, Nước ngoài...) và hệ số nhân giá phòng - quản lý được trong trang Admin
+class CustomerType(db.Model):
+    __tablename__ = 'customer_type'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    name = Column(String(50), nullable=False, unique=True)
+    coefficient = Column(Float, default=1.0, nullable=False)
+
+    customers = relationship('Customer', backref='customer_type', lazy=True)
+
+    def __str__(self):
+        return self.name
+
+
 class Customer(db.Model):
     __tablename__ = 'customer'
 
     user_id = Column(Integer, ForeignKey('user.id'), primary_key=True)
-    customer_type = Column(Enum(CustomerType), default=CustomerType.DOMESTIC, nullable=False)
+    customer_type_id = Column(Integer, ForeignKey('customer_type.id'), nullable=False)
 
     bookings = relationship('Booking', backref='customer', lazy=True)
     stay_details = relationship('StayDetail', backref='customer', lazy=True)
@@ -137,6 +146,11 @@ class Room(db.Model):
     invoice_details = relationship('InvoiceDetail', backref='room', lazy=True)
     stay_details = relationship('StayDetail', backref='room', lazy=True)
 
+    # Đơn giá của phòng = đơn giá của loại phòng
+    @property
+    def price(self):
+        return self.room_type.base_price
+
     def __str__(self):
         return "Phòng " + self.room_number
 
@@ -147,7 +161,6 @@ class Regulation(db.Model):
     id = Column(Integer, primary_key=True, autoincrement=True)
     max_guests = Column(Integer, default=3, nullable=False)
     extra_guest_rate = Column(Float, default=0.25, nullable=False)
-    foreign_guest_factor = Column(Float, default=1.5, nullable=False)
     deposit_rate = Column(Float, default=0.2, nullable=False)
     max_hold_days = Column(Integer, default=28, nullable=False)
     updated_date = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -257,6 +270,13 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
 
+        if not CustomerType.query.first():
+            db.session.add_all([
+                CustomerType(name="Nội địa", coefficient=1.0),
+                CustomerType(name="Nước ngoài", coefficient=1.5)
+            ])
+            db.session.commit()
+
         if not Account.query.first():
             pw_hash = hashlib.md5("123456".encode('utf-8')).hexdigest()
 
@@ -268,7 +288,7 @@ if __name__ == '__main__':
 
             stf_mgr = Staff(user_id=u_mgr.id, position="Quản lý khách sạn")
             stf_rec = Staff(user_id=u_stf.id, position="Nhân viên lễ tân")
-            cus_dom = Customer(user_id=u_cus.id, customer_type=CustomerType.DOMESTIC)
+            cus_dom = Customer(user_id=u_cus.id, customer_type_id=CustomerType.query.first().id)
             db.session.add_all([stf_mgr, stf_rec, cus_dom])
             db.session.flush()
 
@@ -283,7 +303,6 @@ if __name__ == '__main__':
                 reg = Regulation(
                     max_guests=3,
                     extra_guest_rate=0.25,
-                    foreign_guest_factor=1.5,
                     deposit_rate=0.2,
                     max_hold_days=28,
                     manager_id=mgr.staff_id

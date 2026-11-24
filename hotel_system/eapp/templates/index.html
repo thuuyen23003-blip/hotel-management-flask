@@ -37,7 +37,7 @@
     {% for r in rooms %}
     <div class="col-md-3 col-sm-6 mb-4">
         <div class="card h-100 shadow-sm">
-            <img class="card-img-top" src="{{ r.image }}" alt="Room {{ r.room_number }}" style="height: 180px; object-fit: cover;">
+            <img class="card-img-top" src="{{ r.room_type.image }}" alt="Room {{ r.room_number }}" style="height: 180px; object-fit: cover;">
             <div class="card-body d-flex flex-column">
                 <div class="d-flex justify-content-between align-items-center mb-2">
                     <h5 class="card-title mb-0">Phòng {{ r.room_number }}</h5>
@@ -57,7 +57,7 @@
 
                 {% if r.status.name == 'AVAILABLE' %}
                 <button type="button" class="btn btn-primary w-100"
-                        onclick="addSelectedRoom({{ r.id }}, '{{ r.room_number }}', '{{ r.room_type.name }}', {{ r.room_type.base_price }})">
+                        onclick="selectRoom({{ r.id }}, '{{ r.room_number }}', '{{ r.room_type.name }}', {{ r.room_type.base_price }})">
                     + Chọn phòng này
                 </button>
                 {% else %}

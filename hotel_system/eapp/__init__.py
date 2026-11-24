@@ -34,6 +34,7 @@ app.config['MOMO_ENDPOINT'] = os.environ.get('MOMO_ENDPOINT', 'https://test-paym
 
 db = SQLAlchemy(app=app)
 login = LoginManager(app=app)
+login.login_view = 'login_view'
 mail = Mail(app=app)
 
 # Cloudinary Configuration

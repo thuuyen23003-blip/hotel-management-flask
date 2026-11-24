@@ -5,10 +5,10 @@ from flask import render_template, request, redirect, session, jsonify, url_for
 from flask_login import login_user, logout_user, login_required, current_user
 from eapp import app, db, login, dao
 from eapp.models import (
-    AccountRole, CustomerType, Booking, Rental, Customer,
+    AccountRole, Booking, Rental,
     Room, RoomStatus, BookingStatus, RentalStatus, Invoice
 )
-from eapp.utils import summarize_selected_rooms
+from eapp.utils import summarize_selected_rooms, validate_max_hold_days
 from eapp.services import MoMoService
 import cloudinary.uploader
 
@@ -63,6 +63,7 @@ def login_view():
 @app.route('/register', methods=['GET', 'POST'])
 def register_view():
     err_msg = None
+    customer_types = dao.load_customer_types()
     if request.method == 'POST':
         password = request.form.get('password')
         confirm = request.form.get('confirm')
@@ -76,8 +77,6 @@ def register_view():
                 res = cloudinary.uploader.upload(avatar_file)
                 avatar_url = res.get('secure_url')
 
-            c_type = CustomerType.FOREIGN if request.form.get('customer_type') == 'FOREIGN' else CustomerType.DOMESTIC
-
             try:
                 dao.register_customer(
                     full_name=request.form.get('full_name'),
@@ -88,13 +87,13 @@ def register_view():
                     email=request.form.get('email'),
                     address=request.form.get('address'),
                     avatar=avatar_url,
-                    customer_type=c_type
+                    customer_type_id=int(request.form.get('customer_type_id'))
                 )
                 return redirect('/login')
             except Exception as ex:
                 err_msg = "Lỗi đăng ký (Trùng tên đăng nhập hoặc CCCD): " + str(ex)
 
-    return render_template('register.html', err_msg=err_msg)
+    return render_template('register.html', err_msg=err_msg, customer_types=customer_types)
 
 
 @app.route('/logout')
@@ -157,6 +156,15 @@ def confirm_booking():
         expected_checkout = datetime.strptime(checkout_str, '%Y-%m-%d')
 
         reg = dao.get_current_regulation()
+        now = datetime.now()
+
+        # Kiểm tra TRƯỚC khi tạo link thanh toán MoMo (tránh khách trả cọc rồi mới báo lỗi)
+        if expected_checkout.date() <= expected_checkin.date():
+            return jsonify({'status': 400, 'err_msg': 'Ngày trả phòng phải sau ngày nhận phòng!'})
+        if not validate_max_hold_days(now, expected_checkin, reg.max_hold_days):
+            return jsonify({'status': 400, 'err_msg': 'Ngày nhận phòng phải từ hôm nay và không quá ' +
+                                                      str(reg.max_hold_days) + ' ngày kể từ ngày đặt!'})
+
         stay_days = max(1, (expected_checkout.date() - expected_checkin.date()).days)
         total_est = sum(r['base_price'] * stay_days for r in selected_rooms.values())
         deposit = round(total_est * reg.deposit_rate, 0)
@@ -232,18 +240,43 @@ def cancel_booking(booking_id):
 
 
 # 4. Reception Operations (Check-in, Room Replacement, Room Cleaning & Checkout)
+# Đọc bảng khách (họ tên, loại khách, CMND, địa chỉ) từ form, bỏ qua các dòng để trống
+def get_guests_from_form():
+    names = request.form.getlist('guest_name')
+    types = request.form.getlist('guest_type')
+    cccds = request.form.getlist('guest_cccd')
+    addresses = request.form.getlist('guest_address')
+
+    guests = []
+    for i in range(len(names)):
+        name = names[i].strip()
+        cccd = cccds[i].strip()
+        if not name and not cccd:
+            continue
+        if not name or not cccd:
+            raise ValueError("Dòng khách số " + str(i + 1) + " phải nhập đủ họ tên và CMND!")
+        guests.append({
+            'full_name': name,
+            'identity_card': cccd,
+            'customer_type_id': int(types[i]),
+            'address': addresses[i].strip()
+        })
+    return guests
+
+
 @app.route('/reception')
 @login_required
 def reception_dashboard():
     if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
         return redirect('/')
 
+    kw = request.args.get('kw')  # tìm phiếu đặt theo họ tên khách
+
     all_rooms = Room.query.order_by(Room.room_number).all()
     floors = sorted(list(set(r.room_number[0] for r in all_rooms if r.room_number)))
     available_rooms = Room.query.filter_by(status=RoomStatus.AVAILABLE).order_by(Room.room_number).all()
-    pending_bookings = Booking.query.filter_by(status=BookingStatus.PENDING_CHECKIN).all()
+    pending_bookings = dao.load_pending_bookings(kw)
     active_rentals = Rental.query.filter_by(status=RentalStatus.ACTIVE).all()
-    customers = Customer.query.all()
 
     return render_template('reception.html',
                            rooms=all_rooms,
@@ -251,7 +284,8 @@ def reception_dashboard():
                            available_rooms=available_rooms,
                            pending_bookings=pending_bookings,
                            active_rentals=active_rentals,
-                           customers=customers)
+                           customer_types=dao.load_customer_types(),
+                           kw=kw)
 
 
 @app.route('/reception/checkin', methods=['POST'])
@@ -262,6 +296,7 @@ def reception_checkin():
 
     checkin_type = request.form.get('checkin_type')
     try:
+        guests = get_guests_from_form()
         if checkin_type == 'booking':
             booking_id = int(request.form.get('booking_id'))
             room_replacements = {}
@@ -273,21 +308,47 @@ def reception_checkin():
             dao.create_rental_from_booking(
                 booking_id=booking_id,
                 staff_user_id=current_user.user_id,
-                room_replacements=room_replacements
+                room_replacements=room_replacements,
+                guests=guests
             )
         else:
             room_ids = request.form.getlist('room_ids')
-            customer_ids = request.form.getlist('customer_ids')
             checkout_str = request.form.get('expected_checkout')
             expected_checkout = datetime.strptime(checkout_str, '%Y-%m-%d')
             dao.create_walkin_rental(
                 staff_user_id=current_user.user_id,
                 room_ids=room_ids,
                 expected_checkout=expected_checkout,
-                customer_ids=customer_ids
+                guests=guests
             )
         return redirect('/reception?msg=Lập phiếu thuê phòng thành công!')
     except Exception as ex:
+        db.session.rollback()
+        return redirect('/reception?err=' + str(ex))
+
+
+# Nhân viên lập phiếu đặt phòng tại quầy
+@app.route('/reception/booking', methods=['POST'])
+@login_required
+def reception_booking():
+    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
+        return redirect('/')
+
+    try:
+        guests = get_guests_from_form()
+        room_ids = request.form.getlist('room_ids')
+        expected_checkin = datetime.strptime(request.form.get('expected_checkin'), '%Y-%m-%d')
+        expected_checkout = datetime.strptime(request.form.get('expected_checkout'), '%Y-%m-%d')
+
+        booking = dao.create_booking_at_counter(
+            room_ids=room_ids,
+            expected_checkin=expected_checkin,
+            expected_checkout=expected_checkout,
+            guests=guests
+        )
+        return redirect('/reception?msg=Lập phiếu đặt phòng số ' + str(booking.id) + ' thành công!')
+    except Exception as ex:
+        db.session.rollback()
         return redirect('/reception?err=' + str(ex))
 
 
@@ -297,7 +358,9 @@ def clean_room(room_id):
     if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
         return redirect('/')
     room = Room.query.get(room_id)
-    if room and room.status == RoomStatus.CLEANING:
+    if not room:
+        return redirect('/reception?err=Không tìm thấy phòng!')
+    if room.status == RoomStatus.CLEANING:
         room.status = RoomStatus.AVAILABLE
         db.session.commit()
     return redirect('/reception?msg=Phòng ' + room.room_number + ' đã dọn xong và sẵn sàng đón khách!')
@@ -358,9 +421,23 @@ def reception_checkout(rental_id):
         return redirect('/reception?err=' + str(ex))
 
 
+@app.route('/invoice/<int:invoice_id>')
+@login_required
+def view_invoice(invoice_id):
+    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
+        return redirect('/')
+    invoice = Invoice.query.get_or_404(invoice_id)
+    copy_type = request.args.get('copy', 'customer')
+    if copy_type == 'manager' and current_user.role != AccountRole.MANAGER:
+        copy_type = 'customer'
+    return render_template('invoice.html', invoice=invoice, copy_type=copy_type)
+
+
 @app.route('/momo-checkout-return/<int:rental_id>')
 @login_required
 def momo_checkout_return(rental_id):
+    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
+        return redirect('/')
     result_code = request.args.get('resultCode')
     is_prepaid = (request.args.get('prepay') == '1')
     if result_code == '0':

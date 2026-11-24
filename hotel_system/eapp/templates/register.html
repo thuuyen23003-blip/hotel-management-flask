@@ -22,7 +22,7 @@
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-semibold">Số CCCD / Hộ chiếu <span class="text-danger">*</span></label>
-
+                            <input type="text" class="form-control" name="identity_card" required>
                         </div>
                     </div>
 
@@ -40,9 +40,10 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label fw-semibold">Loại khách hàng</label>
-                            <select class="form-select" name="customer_type">
-                                <option value="DOMESTIC">Khách nội địa (Việt Nam)</option>
-                                <option value="FOREIGN">Khách nước ngoài (Quốc tế)</option>
+                            <select class="form-select" name="customer_type_id">
+                                {% for ct in customer_types %}
+                                <option value="{{ ct.id }}">{{ ct.name }}</option>
+                                {% endfor %}
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">

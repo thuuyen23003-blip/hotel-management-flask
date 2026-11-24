@@ -1,6 +1,6 @@
 import hashlib
 from datetime import datetime
-from sqlalchemy import func
+from sqlalchemy import func, extract
 from eapp import app, db
 from eapp.models import (
     User, Account, Customer, RoomType, Room, Regulation,
@@ -50,6 +50,43 @@ def count_rooms(room_type_id=None, status=None, kw=None):
 
 def get_current_regulation():
     return Regulation.query.first()
+
+
+def load_customer_types():
+    return CustomerType.query.all()
+
+
+# Tra cứu phiếu đặt phòng đang chờ nhận, có thể tìm theo họ tên khách
+def load_pending_bookings(kw=None):
+    query = Booking.query.filter(Booking.status == BookingStatus.PENDING_CHECKIN)
+    if kw:
+        query = (query.join(Customer, Customer.user_id == Booking.customer_id)
+                 .join(User, User.id == Customer.user_id)
+                 .filter(User.full_name.contains(kw)))
+    return query.all()
+
+
+# Tìm khách theo CMND, nếu chưa có thì tạo khách mới (khách không cần tài khoản)
+def get_or_create_customer(full_name, identity_card, customer_type_id, address=None):
+    user = User.query.filter(User.identity_card == identity_card).first()
+    if not user:
+        user = User(full_name=full_name, identity_card=identity_card, phone='', address=address)
+        db.session.add(user)
+        db.session.flush()
+
+    customer = Customer.query.get(user.id)
+    if not customer:
+        customer = Customer(user_id=user.id, customer_type_id=customer_type_id)
+        db.session.add(customer)
+        db.session.flush()
+    return customer
+
+
+# Chia đều khách vào các phòng: khách 1 -> phòng 1, khách 2 -> phòng 2, khách 3 -> phòng 1 ...
+def assign_guests_to_rooms(rental, rooms):
+    stays = StayDetail.query.filter_by(rental_id=rental.id).order_by(StayDetail.id).all()
+    for i in range(len(stays)):
+        stays[i].room_id = rooms[i % len(rooms)].id
 
 
 def get_available_rooms_by_dates(checkin_date, checkout_date, room_type_id=None):
@@ -104,7 +141,7 @@ def get_account_by_id(account_id):
 
 def register_customer(full_name, identity_card, phone, username, password,
                       email=None, address=None, avatar=None,
-                      customer_type=CustomerType.DOMESTIC):
+                      customer_type_id=None):
     hashed_pw = hashlib.md5(password.strip().encode('utf-8')).hexdigest()
 
     user = User(
@@ -113,12 +150,12 @@ def register_customer(full_name, identity_card, phone, username, password,
         phone=phone.strip(),
         email=email.strip() if email else None,
         address=address.strip() if address else None,
-        avatar=avatar if avatar else '/static/images/default-avatar.png'
+        avatar=avatar if avatar else '/static/images/default-avatar.jpg'
     )
     db.session.add(user)
     db.session.flush()
 
-    customer = Customer(user_id=user.id, customer_type=customer_type)
+    customer = Customer(user_id=user.id, customer_type_id=customer_type_id)
     account = Account(
         username=username.strip(),
         password=hashed_pw,
@@ -147,7 +184,7 @@ def create_online_booking(customer_user_id, selected_rooms, expected_checkin,
     deposit_amount = calculate_deposit(total_estimated, reg.deposit_rate)
 
     if not Customer.query.get(customer_user_id):
-        db.session.add(Customer(user_id=customer_user_id, customer_type=CustomerType.DOMESTIC))
+        db.session.add(Customer(user_id=customer_user_id, customer_type_id=CustomerType.query.first().id))
         db.session.flush()
 
     booking = Booking(
@@ -210,7 +247,7 @@ def get_bookings_by_customer(customer_user_id):
 
 
 # 4. Reception Check-in (Supports Room Replacement & 28-day Expiry Check)
-def create_rental_from_booking(booking_id, staff_user_id, room_replacements=None):
+def create_rental_from_booking(booking_id, staff_user_id, room_replacements=None, guests=None):
     booking = Booking.query.get(booking_id)
     reg = get_current_regulation()
     now = datetime.now()
@@ -239,6 +276,7 @@ def create_rental_from_booking(booking_id, staff_user_id, room_replacements=None
     db.session.add(rental)
     db.session.flush()
 
+    rooms = []  # các phòng thực tế của phiếu thuê (sau khi đổi phòng nếu có)
     replaced_notes = []
     for d in booking.details:
         target_room = d.room
@@ -252,11 +290,31 @@ def create_rental_from_booking(booking_id, staff_user_id, room_replacements=None
                 target_room = new_room
 
         target_room.status = RoomStatus.OCCUPIED
+        rooms.append(target_room)
         db.session.add(RentalDetail(rental_id=rental.id, room_id=target_room.id))
 
+    # Khách đã khai trong phiếu đặt (người đặt) chuyển sang phiếu thuê
+    guest_ids = []
     for s in booking.stay_details:
         s.rental_id = rental.id
+        guest_ids.append(s.customer_id)
 
+    # Khách nhập thêm lúc nhận phòng (bảng khách trong phiếu thuê)
+    if guests:
+        for g in guests:
+            customer = get_or_create_customer(**g)
+            if customer.user_id not in guest_ids:
+                guest_ids.append(customer.user_id)
+                db.session.add(StayDetail(booking_id=booking.id, rental_id=rental.id,
+                                          customer_id=customer.user_id))
+
+    # Mỗi phòng ở tối đa max_guests khách
+    if len(guest_ids) > reg.max_guests * len(rooms):
+        db.session.rollback()
+        raise ValueError("Số lượng khách vượt quá quy định tối đa " + str(reg.max_guests) + " khách/phòng!")
+
+    db.session.flush()
+    assign_guests_to_rooms(rental, rooms)
     db.session.commit()
 
     notifier = NotificationService()
@@ -272,12 +330,26 @@ def create_rental_from_booking(booking_id, staff_user_id, room_replacements=None
     return rental
 
 
-def create_walkin_rental(staff_user_id, room_ids, expected_checkout, customer_ids):
+def create_walkin_rental(staff_user_id, room_ids, expected_checkout, guests):
     reg = get_current_regulation()
-    if len(customer_ids) > reg.max_guests * len(room_ids):
+    now = datetime.now()
+
+    if not room_ids:
+        raise ValueError("Vui lòng chọn ít nhất 1 phòng!")
+    if not guests:
+        raise ValueError("Vui lòng nhập thông tin ít nhất 1 khách!")
+    if expected_checkout.date() < now.date():
+        raise ValueError("Ngày trả phòng không được nhỏ hơn hôm nay!")
+    if len(guests) > reg.max_guests * len(room_ids):
         raise ValueError("Số lượng khách vượt quá quy định tối đa " + str(reg.max_guests) + " khách/phòng!")
 
-    now = datetime.now()
+    rooms = []
+    for r_id in room_ids:
+        room = Room.query.get(int(r_id))
+        if not room or room.status != RoomStatus.AVAILABLE:
+            raise ValueError("Có phòng được chọn không còn trống!")
+        rooms.append(room)
+
     rental = Rental(
         created_date=now,
         checkin_date=now,
@@ -289,22 +361,57 @@ def create_walkin_rental(staff_user_id, room_ids, expected_checkout, customer_id
     db.session.add(rental)
     db.session.flush()
 
-    for r_id in room_ids:
-        room = Room.query.get(int(r_id))
-        if room and room.status == RoomStatus.AVAILABLE:
-            room.status = RoomStatus.OCCUPIED
-            db.session.add(RentalDetail(rental_id=rental.id, room_id=room.id))
+    for room in rooms:
+        room.status = RoomStatus.OCCUPIED
+        db.session.add(RentalDetail(rental_id=rental.id, room_id=room.id))
 
-    first_room_id = int(room_ids) if room_ids else None
-    for c_id in customer_ids:
-        db.session.add(StayDetail(
-            rental_id=rental.id,
-            room_id=first_room_id,
-            customer_id=int(c_id)
-        ))
+    guest_ids = []
+    for g in guests:
+        customer = get_or_create_customer(**g)
+        if customer.user_id not in guest_ids:
+            guest_ids.append(customer.user_id)
+            db.session.add(StayDetail(rental_id=rental.id, customer_id=customer.user_id))
 
+    db.session.flush()
+    assign_guests_to_rooms(rental, rooms)
     db.session.commit()
     return rental
+
+
+# Nhân viên lập phiếu đặt phòng trực tiếp tại quầy (khách đến gặp nhân viên để đặt phòng)
+# guests[0] là người đặt phòng, các dòng sau là khách ở cùng
+def create_booking_at_counter(room_ids, expected_checkin, expected_checkout, guests):
+    reg = get_current_regulation()
+
+    if not room_ids:
+        raise ValueError("Vui lòng chọn ít nhất 1 phòng!")
+    if not guests:
+        raise ValueError("Vui lòng nhập thông tin người đặt phòng!")
+    if expected_checkout.date() <= expected_checkin.date():
+        raise ValueError("Ngày trả phòng phải sau ngày nhận phòng!")
+    if len(guests) > reg.max_guests * len(room_ids):
+        raise ValueError("Số lượng khách vượt quá quy định tối đa " + str(reg.max_guests) + " khách/phòng!")
+
+    selected_rooms = {}
+    for r_id in room_ids:
+        room = Room.query.get(int(r_id))
+        if not room or room.status != RoomStatus.AVAILABLE:
+            raise ValueError("Có phòng được chọn không còn trống!")
+        selected_rooms[str(room.id)] = {
+            'id': room.id,
+            'room_number': room.room_number,
+            'base_price': room.room_type.base_price
+        }
+
+    booker = get_or_create_customer(**guests[0])
+
+    guest_list = []
+    for g in guests[1:]:
+        customer = get_or_create_customer(**g)
+        if customer.user_id != booker.user_id:
+            guest_list.append({'customer_id': customer.user_id})
+
+    return create_online_booking(booker.user_id, selected_rooms, expected_checkin, expected_checkout, guest_list)
 
 
 # 5. Checkout, Pre-payment, Invoice Creation & Electronic Invoice Email
@@ -330,8 +437,6 @@ def checkout_and_create_invoice(rental_id, staff_user_id, payment_method="Tiền
 
     # Case 2: Calculate room charges and create invoice
     all_stays = rental.stay_details
-    total_guests = len(all_stays)
-    has_foreign = any(s.customer.customer_type == CustomerType.FOREIGN for s in all_stays)
     stay_days = calculate_stay_days(rental.checkin_date, rental.expected_checkout if is_prepaid else now)
 
     invoice = Invoice(
@@ -347,23 +452,25 @@ def checkout_and_create_invoice(rental_id, staff_user_id, payment_method="Tiền
     db.session.flush()
 
     total_room_amount = 0.0
-    num_rooms = max(1, len(rental.rental_details))
-    guests_per_room = max(1, round(total_guests / num_rooms))
 
     for rd in rental.rental_details:
         if not is_prepaid:
             rd.actual_checkout = now
             rd.room.status = RoomStatus.CLEANING
 
-        room_stays = [s for s in all_stays if s.room_id == rd.room_id]
-        room_guest_count = len(room_stays) if room_stays else guests_per_room
-        room_has_foreign = any(s.customer.customer_type == CustomerType.FOREIGN for s in room_stays) if room_stays else has_foreign
+        # Khách đang ở phòng này
+        room_stays = [st for st in all_stays if st.room_id == rd.room_id]
+        guest_count = max(1, len(room_stays))
+
+        # Hệ số của phòng = hệ số lớn nhất trong các loại khách của phòng (vd có khách nước ngoài -> 1.5)
+        coefficients = [st.customer.customer_type.coefficient for st in room_stays]
+        guest_factor = max(coefficients) if coefficients else 1.0
 
         calc = calculate_room_checkout(
             base_price=rd.room.room_type.base_price,
             stay_days=stay_days,
-            guest_count=room_guest_count,
-            has_foreign_guest=room_has_foreign,
+            guest_count=guest_count,
+            guest_factor=guest_factor,
             regulation=reg
         )
         total_room_amount += calc['room_total']
@@ -413,41 +520,56 @@ def stats_rooms_by_type():
             .group_by(RoomType.id).all())
 
 
+# Doanh thu từng loại phòng trong tháng được chọn
 def stats_revenue_by_room_type(month, year):
-    rows = (db.session.query(
-                RoomType.name,
-                func.coalesce(func.sum(InvoiceDetail.room_total), 0.0).label('revenue'),
-                func.count(InvoiceDetail.id).label('rental_count')
-            )
-            .outerjoin(Room, Room.room_type_id == RoomType.id)
-            .outerjoin(InvoiceDetail, InvoiceDetail.room_id == Room.id)
-            .outerjoin(Invoice, (Invoice.id == InvoiceDetail.invoice_id) &
-                       (func.extract('month', Invoice.payment_date) == month) &
-                       (func.extract('year', Invoice.payment_date) == year))
+    # Chỉ lấy các hóa đơn thuộc tháng/năm được chọn
+    rows = (db.session.query(RoomType.id,
+                             func.sum(InvoiceDetail.room_total),
+                             func.count(InvoiceDetail.id))
+            .join(Room, Room.room_type_id == RoomType.id)
+            .join(InvoiceDetail, InvoiceDetail.room_id == Room.id)
+            .join(Invoice, Invoice.id == InvoiceDetail.invoice_id)
+            .filter(extract('month', Invoice.payment_date) == month,
+                    extract('year', Invoice.payment_date) == year)
             .group_by(RoomType.id).all())
 
-    grand_total = sum(r[1] for r in rows)
-    result = []
+    # Đưa vào dict: id loại phòng -> (doanh thu, số lượt thuê)
+    data = {}
     for r in rows:
-        pct = round((r[1] / grand_total) * 100, 1) if grand_total > 0 else 0.0
-        result.append((r[0], r[1], r[2], pct))
+        data[r[0]] = (r[1], r[2])
+
+    # Loại phòng không có hóa đơn trong tháng thì doanh thu = 0
+    grand_total = 0
+    for v in data.values():
+        grand_total += v[0]
+
+    result = []
+    for rt in RoomType.query.all():
+        revenue, count = data.get(rt.id, (0, 0))
+        pct = round(revenue / grand_total * 100, 1) if grand_total > 0 else 0.0
+        result.append((rt.name, revenue, count, pct))
     return result
 
 
+# Số ngày thuê của từng phòng trong tháng được chọn
 def stats_occupancy_by_room(month, year):
-    rows = (db.session.query(
-                Room.room_number,
-                func.coalesce(func.sum(InvoiceDetail.stay_days), 0).label('total_days')
-            )
-            .outerjoin(InvoiceDetail, InvoiceDetail.room_id == Room.id)
-            .outerjoin(Invoice, (Invoice.id == InvoiceDetail.invoice_id) &
-                       (func.extract('month', Invoice.payment_date) == month) &
-                       (func.extract('year', Invoice.payment_date) == year))
-            .group_by(Room.id).order_by(Room.room_number).all())
+    rows = (db.session.query(InvoiceDetail.room_id, func.sum(InvoiceDetail.stay_days))
+            .join(Invoice, Invoice.id == InvoiceDetail.invoice_id)
+            .filter(extract('month', Invoice.payment_date) == month,
+                    extract('year', Invoice.payment_date) == year)
+            .group_by(InvoiceDetail.room_id).all())
 
-    total_all_days = sum(o[1] for o in rows)
+    data = {}
+    for r in rows:
+        data[r[0]] = r[1]
+
+    total_all_days = 0
+    for days in data.values():
+        total_all_days += days
+
     result = []
-    for o in rows:
-        pct = round((o[1] / total_all_days) * 100, 1) if total_all_days > 0 else 0.0
-        result.append((o[0], o[1], pct))
+    for room in Room.query.order_by(Room.room_number).all():
+        days = data.get(room.id, 0)
+        pct = round(days / total_all_days * 100, 1) if total_all_days > 0 else 0.0
+        result.append((room.room_number, days, pct))
     return result
