@@ -2,30 +2,30 @@
 <div class="table-responsive">
     <table class="table table-bordered table-sm align-middle mb-2">
         <thead class="table-light text-center small">
-            <tr>
-                <th>STT</th>
-                <th>Khách hàng</th>
-                <th>Loại khách</th>
-                <th>CMND</th>
-                <th>Địa chỉ</th>
-            </tr>
+        <tr>
+            <th>STT</th>
+            <th>Khách hàng</th>
+            <th>Loại khách</th>
+            <th>CMND</th>
+            <th>Địa chỉ</th>
+        </tr>
         </thead>
         <tbody>
-            {% for i in range(rows) %}
+        {% for i in range(rows) %}
             <tr>
                 <td class="text-center">{{ i + 1 }}</td>
                 <td><input type="text" class="form-control form-control-sm" name="guest_name"></td>
                 <td>
                     <select class="form-select form-select-sm" name="guest_type">
                         {% for ct in customer_types %}
-                        <option value="{{ ct.id }}">{{ ct.name }}</option>
+                            <option value="{{ ct.id }}">{{ ct.name }}</option>
                         {% endfor %}
                     </select>
                 </td>
                 <td><input type="text" class="form-control form-control-sm" name="guest_cccd"></td>
                 <td><input type="text" class="form-control form-control-sm" name="guest_address"></td>
             </tr>
-            {% endfor %}
+        {% endfor %}
         </tbody>
     </table>
 </div>

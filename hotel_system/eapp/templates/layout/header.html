@@ -10,7 +10,8 @@
 
         <div class="d-flex align-items-center">
             <a href="/booking-list" class="btn btn-warning btn-sm fw-semibold me-2">
-                Phòng đang chọn (<span class="booking-counter">{{ session.get('selected_rooms')|length if session.get('selected_rooms') else 0 }}</span>)
+                Phòng đang chọn (<span
+                    class="booking-counter">{{ session.get('selected_rooms')|length if session.get('selected_rooms') else 0 }}</span>)
             </a>
             {% if current_user.is_authenticated %}
                 <span class="text-light small d-none d-md-inline">Xin chào, {{ current_user.user.full_name }}</span>
@@ -30,14 +31,14 @@
     <div class="offcanvas-body d-flex flex-column justify-content-between">
         <div>
             {% if current_user.is_authenticated %}
-            <div class="d-flex align-items-center mb-3 pb-3 border-bottom border-secondary">
-                <img src="{{ current_user.user.avatar }}" alt="Avatar"
-                     class="rounded-circle me-2" width="42" height="42" style="object-fit: cover;">
-                <div>
-                    <div class="fw-semibold">{{ current_user.user.full_name }}</div>
-                    <small class="text-secondary">{{ current_user.role.name }}</small>
+                <div class="d-flex align-items-center mb-3 pb-3 border-bottom border-secondary">
+                    <img src="{{ current_user.user.avatar }}" alt="Avatar"
+                         class="rounded-circle me-2" width="42" height="42" style="object-fit: cover;">
+                    <div>
+                        <div class="fw-semibold">{{ current_user.user.full_name }}</div>
+                        <small class="text-secondary">{{ current_user.role.name }}</small>
+                    </div>
                 </div>
-            </div>
             {% endif %}
 
             <ul class="nav nav-pills flex-column gap-1">
@@ -49,24 +50,24 @@
                 </li>
 
                 {% if current_user.is_authenticated %}
-                <li class="nav-item">
-                    <a class="nav-link text-white" href="/my-bookings">Lịch sử đặt phòng của tôi</a>
-                </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-white" href="/my-bookings">Lịch sử đặt phòng của tôi</a>
+                    </li>
 
-                {% if current_user.role.name in ['STAFF', 'MANAGER'] %}
-                <li class="nav-item mt-2 pt-2 border-top border-secondary">
-                    <small class="text-uppercase text-secondary px-3">Nghiệp vụ Khách sạn</small>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-warning" href="/reception">Quầy Lễ tân (Check-in / Out)</a>
-                </li>
-                {% endif %}
+                    {% if current_user.role.name in ['STAFF', 'MANAGER'] %}
+                        <li class="nav-item mt-2 pt-2 border-top border-secondary">
+                            <small class="text-uppercase text-secondary px-3">Nghiệp vụ Khách sạn</small>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-warning" href="/reception">Quầy Lễ tân (Check-in / Out)</a>
+                        </li>
+                    {% endif %}
 
-                {% if current_user.role.name == 'MANAGER' %}
-                <li class="nav-item">
-                    <a class="nav-link text-info" href="/admin">Trang Quản trị &amp; Thống kê</a>
-                </li>
-                {% endif %}
+                    {% if current_user.role.name == 'MANAGER' %}
+                        <li class="nav-item">
+                            <a class="nav-link text-info" href="/admin">Trang Quản trị &amp; Thống kê</a>
+                        </li>
+                    {% endif %}
                 {% endif %}
             </ul>
         </div>

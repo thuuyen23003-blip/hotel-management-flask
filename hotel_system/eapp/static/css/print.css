@@ -1,0 +1,36 @@
+/* CSS cho các trang in: phiếu đặt phòng, phiếu thuê phòng, hóa đơn */
+
+/* Chỗ để khách ký tên */
+.sign-area {
+    min-height: 110px;
+}
+
+/* Lề trang = 0 để trình duyệt không in ngày giờ và đường dẫn ở đầu/cuối trang (lề thật đặt cho nội dung ở dưới) */
+@page {
+    margin: 0;
+}
+
+@media print {
+    /* Ẩn menu, chân trang và các nút bấm */
+    nav.navbar, .offcanvas, footer, .d-print-none {
+        display: none !important;
+    }
+
+    body {
+        background: #fff !important;
+    }
+
+    /* Bỏ khung và bóng đổ bên ngoài, chỉ in nội dung */
+    .print-box {
+        border: 0 !important;
+        box-shadow: none !important;
+    }
+
+    .print-box .card-body {
+        padding: 0 !important;
+    }
+
+    main {
+        padding: 15mm;
+    }
+}

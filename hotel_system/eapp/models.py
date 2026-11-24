@@ -1,7 +1,7 @@
 import enum
 import hashlib
 from datetime import datetime
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Enum
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Enum, UniqueConstraint
 from sqlalchemy.orm import relationship
 from flask_login import UserMixin
 from eapp import app, db
@@ -189,6 +189,7 @@ class Booking(db.Model):
 
 class BookingDetail(db.Model):
     __tablename__ = 'booking_detail'
+    __table_args__ = (UniqueConstraint('booking_id', 'room_id', name='uq_booking_room'),)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     booking_id = Column(Integer, ForeignKey('booking.id'), nullable=False)
@@ -218,6 +219,7 @@ class Rental(db.Model):
 
 class RentalDetail(db.Model):
     __tablename__ = 'rental_detail'
+    __table_args__ = (UniqueConstraint('rental_id', 'room_id', name='uq_rental_room'),)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     rental_id = Column(Integer, ForeignKey('rental.id'), nullable=False)
@@ -254,6 +256,7 @@ class Invoice(db.Model):
 
 class InvoiceDetail(db.Model):
     __tablename__ = 'invoice_detail'
+    __table_args__ = (UniqueConstraint('invoice_id', 'room_id', name='uq_invoice_room'),)
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     invoice_id = Column(Integer, ForeignKey('invoice.id'), nullable=False)
@@ -280,9 +283,12 @@ if __name__ == '__main__':
         if not Account.query.first():
             pw_hash = hashlib.md5("123456".encode('utf-8')).hexdigest()
 
-            u_mgr = User(full_name="Trần Võ Thị Thu Uyên", identity_card="079303000001", phone="0901000001", email="manager@aureliahotel.vn")
-            u_stf = User(full_name="Lễ Tân Aurelia", identity_card="079303000002", phone="0901000002", email="reception@aureliahotel.vn")
-            u_cus = User(full_name="Nguyễn Minh Anh", identity_card="079303000003", phone="0901000003", email="khachhang@gmail.com")
+            u_mgr = User(full_name="Trần Võ Thị Thu Uyên", identity_card="079303000001", phone="0901000001",
+                         email="manager@aureliahotel.vn")
+            u_stf = User(full_name="Lễ Tân Aurelia", identity_card="079303000002", phone="0901000002",
+                         email="reception@aureliahotel.vn")
+            u_cus = User(full_name="Nguyễn Minh Anh", identity_card="079303000003", phone="0901000003",
+                         email="khachhang@gmail.com")
             db.session.add_all([u_mgr, u_stf, u_cus])
             db.session.flush()
 
@@ -310,10 +316,14 @@ if __name__ == '__main__':
                 db.session.add(reg)
 
         if not RoomType.query.first():
-            rt1 = RoomType(name="Standard Single", base_price=500000, description="Phòng tiêu chuẩn 1 giường đơn, đầy đủ tiện nghi.")
-            rt2 = RoomType(name="Superior Double", base_price=800000, description="Phòng hạng trung 1 giường đôi rộng rãi, ban công thoáng mát.")
-            rt3 = RoomType(name="Deluxe Twin", base_price=1200000, description="Phòng cao cấp 2 giường lớn, view hướng phố.")
-            rt4 = RoomType(name="Aurelia Suite VIP", base_price=2500000, description="Phòng hạng sang diện tích lớn, phòng khách riêng biệt.")
+            rt1 = RoomType(name="Standard Single", base_price=500000,
+                           description="Phòng tiêu chuẩn 1 giường đơn, đầy đủ tiện nghi.")
+            rt2 = RoomType(name="Superior Double", base_price=800000,
+                           description="Phòng hạng trung 1 giường đôi rộng rãi, ban công thoáng mát.")
+            rt3 = RoomType(name="Deluxe Twin", base_price=1200000,
+                           description="Phòng cao cấp 2 giường lớn, view hướng phố.")
+            rt4 = RoomType(name="Aurelia Suite VIP", base_price=2500000,
+                           description="Phòng hạng sang diện tích lớn, phòng khách riêng biệt.")
             db.session.add_all([rt1, rt2, rt3, rt4])
             db.session.flush()
 

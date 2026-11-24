@@ -1,0 +1,97 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}Phiếu thuê phòng {{ rental.id }}{% endblock %}
+
+{% block head_extra %}
+    <link href="{{ url_for('static', filename='css/print.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+    <div class="container mt-4 mb-5" style="max-width: 850px;">
+        <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
+            <a href="/reception" class="btn btn-outline-secondary btn-sm">&larr; Quay lại Quầy Lễ Tân</a>
+            <button onclick="window.print()" class="btn btn-success btn-sm">In phiếu thuê phòng</button>
+        </div>
+
+        {% if request.args.get('new') %}
+            <div class="alert alert-success d-print-none">Lập phiếu thuê phòng thành công. Vui lòng in phiếu cho khách
+                ký nhận.
+            </div>
+        {% endif %}
+
+        <div class="card shadow-sm border-dark print-box">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between border-bottom pb-2 mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-0">AURELIA HOTEL &amp; SUITES</h5>
+                        <div class="small text-muted">Mã phiếu thuê: <strong>{{ rental.id }}</strong>
+                            {% if rental.booking %}(theo phiếu đặt {{ rental.booking.id }}){% endif %}
+                        </div>
+                    </div>
+                    <div class="small text-muted text-end">Ngày
+                        lập: {{ rental.created_date.strftime('%d/%m/%Y %H:%M') }}</div>
+                </div>
+
+                <h4 class="text-center fw-bold text-uppercase mb-3">Phiếu thuê phòng</h4>
+
+                <table class="table table-bordered align-middle mb-3">
+                    <tr>
+                        <td style="width: 50%;"><strong>Các phòng thuê:</strong>
+                            {% for rd in rental.rental_details %}{{ rd.room.room_number }}{% if not loop.last %},
+                            {% endif %}{% endfor %}
+                        </td>
+                        <td><strong>Ngày nhận phòng:</strong> {{ rental.checkin_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ngày trả phòng (dự
+                            kiến):</strong> {{ rental.expected_checkout.strftime('%d/%m/%Y') }}</td>
+                        <td><strong>Tiền cọc đã đóng:</strong> {{ "{:,.0f}".format(rental.deposit_deducted) }} VNĐ</td>
+                    </tr>
+                </table>
+
+                <table class="table table-bordered table-sm align-middle mb-3">
+                    <thead class="table-light text-center">
+                    <tr>
+                        <th>STT</th>
+                        <th>Khách hàng</th>
+                        <th>Loại khách</th>
+                        <th>CMND</th>
+                        <th>Địa chỉ</th>
+                        <th>Phòng</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for s in rental.stay_details %}
+                        <tr>
+                            <td class="text-center">{{ loop.index }}</td>
+                            <td>{{ s.customer.user.full_name }}</td>
+                            <td class="text-center">{{ s.customer.customer_type.name }}</td>
+                            <td>{{ s.customer.user.identity_card }}</td>
+                            <td>{{ s.customer.user.address or '' }}</td>
+                            <td class="text-center">{{ s.room.room_number if s.room else '' }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+
+                <p class="fst-italic small mb-0">
+                    <strong>Quy định:</strong> Mỗi phòng được ở tối đa {{ max_guests }} khách.
+                </p>
+
+                <div class="row text-center mt-4 pt-3 small">
+                    <div class="col-6">
+                        <div class="fw-bold">Khách hàng (ký nhận)</div>
+                        <div class="text-muted">(Ký và ghi rõ họ tên)</div>
+                        <div class="sign-area"></div>
+                    </div>
+                    <div class="col-6">
+                        <div class="fw-bold">Nhân viên lập phiếu</div>
+                        <div class="text-muted">(Ký và ghi rõ họ tên)</div>
+                        <div class="sign-area"></div>
+                        <div class="fw-semibold">{{ rental.staff.user.full_name }}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

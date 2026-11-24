@@ -1,5 +1,5 @@
 import hashlib
-from datetime import datetime
+from datetime import datetime, timedelta
 from sqlalchemy import func, extract
 from eapp import app, db
 from eapp.models import (
@@ -52,6 +52,42 @@ def get_current_regulation():
     return Regulation.query.first()
 
 
+# Phòng có trống trong khoảng ngày [checkin, checkout) không?
+# Phòng KHÔNG trống nếu trùng ngày với phiếu đặt đang chờ nhận hoặc phiếu thuê đang ở
+def is_room_free(room_id, checkin, checkout, ignore_booking_id=None):
+    booking_query = (db.session.query(BookingDetail)
+                     .join(Booking, Booking.id == BookingDetail.booking_id)
+                     .filter(BookingDetail.room_id == room_id,
+                             Booking.status == BookingStatus.PENDING_CHECKIN,
+                             Booking.expected_checkin < checkout,
+                             Booking.expected_checkout > checkin))
+    if ignore_booking_id:
+        booking_query = booking_query.filter(Booking.id != ignore_booking_id)
+    if booking_query.first():
+        return False
+
+    rental_query = (db.session.query(RentalDetail)
+                    .join(Rental, Rental.id == RentalDetail.rental_id)
+                    .filter(RentalDetail.room_id == room_id,
+                            Rental.status == RentalStatus.ACTIVE,
+                            Rental.checkin_date < checkout,
+                            Rental.expected_checkout > checkin))
+    return rental_query.first() is None
+
+
+# Id các phòng có phiếu đặt rơi vào ngày hôm nay (để hiện "Đã đặt" trên sơ đồ phòng)
+def get_room_ids_booked_today():
+    today = datetime.now().date()
+    start = datetime(today.year, today.month, today.day)
+    end = start + timedelta(days=1)
+    rows = (db.session.query(BookingDetail.room_id)
+            .join(Booking, Booking.id == BookingDetail.booking_id)
+            .filter(Booking.status == BookingStatus.PENDING_CHECKIN,
+                    Booking.expected_checkin < end,
+                    Booking.expected_checkout > start).all())
+    return [r[0] for r in rows]
+
+
 def load_customer_types():
     return CustomerType.query.all()
 
@@ -79,6 +115,15 @@ def get_or_create_customer(full_name, identity_card, customer_type_id, address=N
         customer = Customer(user_id=user.id, customer_type_id=customer_type_id)
         db.session.add(customer)
         db.session.flush()
+
+    active_stay = (db.session.query(StayDetail)
+                   .join(Rental, Rental.id == StayDetail.rental_id)
+                   .filter(StayDetail.customer_id == customer.user_id,
+                           Rental.status == RentalStatus.ACTIVE).first())
+    if active_stay:
+        raise ValueError(
+            "Khách hàng " + user.full_name + " (CCCD: " + identity_card + ") hiện đang lưu trú tại một phòng khác!")
+
     return customer
 
 
@@ -176,6 +221,12 @@ def create_online_booking(customer_user_id, selected_rooms, expected_checkin,
     if not validate_max_hold_days(now, expected_checkin, reg.max_hold_days):
         raise ValueError("Ngày nhận phòng không được vượt quá " + str(reg.max_hold_days) + " ngày kể từ ngày đặt!")
 
+    # Mỗi phòng phải còn trống trong khoảng ngày đã chọn (phòng không bị khóa từ lúc đặt)
+    for r in selected_rooms.values():
+        if not is_room_free(int(r['id']), expected_checkin, expected_checkout):
+            raise ValueError(
+                "Phòng " + str(r['room_number']) + " đã có người đặt hoặc đang thuê trong khoảng ngày này!")
+
     stay_days = calculate_stay_days(expected_checkin, expected_checkout)
     total_estimated = 0
     for r in selected_rooms.values():
@@ -200,17 +251,14 @@ def create_online_booking(customer_user_id, selected_rooms, expected_checkin,
     db.session.flush()
 
     for r in selected_rooms.values():
-        room_obj = Room.query.get(int(r['id']))
-        if room_obj and room_obj.status == RoomStatus.AVAILABLE:
-            room_obj.status = RoomStatus.BOOKED
-            room_total = r['base_price'] * stay_days
-            detail = BookingDetail(
-                booking_id=booking.id,
-                room_id=room_obj.id,
-                price_at_booking=r['base_price'],
-                room_deposit=calculate_deposit(room_total, reg.deposit_rate)
-            )
-            db.session.add(detail)
+        room_total = r['base_price'] * stay_days
+        detail = BookingDetail(
+            booking_id=booking.id,
+            room_id=int(r['id']),
+            price_at_booking=r['base_price'],
+            room_deposit=calculate_deposit(room_total, reg.deposit_rate)
+        )
+        db.session.add(detail)
 
     db.session.add(StayDetail(booking_id=booking.id, customer_id=customer_user_id))
     if guest_list:
@@ -257,9 +305,6 @@ def create_rental_from_booking(booking_id, staff_user_id, room_replacements=None
 
     if not validate_max_hold_days(booking.booking_date, now, reg.max_hold_days):
         booking.status = BookingStatus.EXPIRED_CANCELLED
-        for d in booking.details:
-            if d.room.status == RoomStatus.BOOKED:
-                d.room.status = RoomStatus.AVAILABLE
         db.session.commit()
         raise ValueError("Phiếu đặt phòng đã quá hạn " + str(reg.max_hold_days) + " ngày và bị hủy (không hoàn cọc)!")
 
@@ -283,11 +328,15 @@ def create_rental_from_booking(booking_id, staff_user_id, room_replacements=None
         if room_replacements and str(d.room_id) in room_replacements:
             new_room_id = int(room_replacements[str(d.room_id)])
             new_room = Room.query.get(new_room_id)
-            if new_room and new_room.status == RoomStatus.AVAILABLE:
+            # Phòng mới phải đang trống và không bị ai đặt trong thời gian khách ở
+            if (new_room and new_room.status == RoomStatus.AVAILABLE
+                    and is_room_free(new_room.id, now, booking.expected_checkout, booking.id)):
                 replaced_notes.append("Phòng " + target_room.room_number + " -> " + new_room.room_number)
-                if target_room.status == RoomStatus.BOOKED:
-                    target_room.status = RoomStatus.AVAILABLE
                 target_room = new_room
+
+        if target_room.status != RoomStatus.AVAILABLE:
+            raise ValueError(
+                "Phòng " + target_room.room_number + " chưa sẵn sàng (đang thuê hoặc đang dọn), vui lòng đổi sang phòng trống!")
 
         target_room.status = RoomStatus.OCCUPIED
         rooms.append(target_room)
@@ -307,6 +356,10 @@ def create_rental_from_booking(booking_id, staff_user_id, room_replacements=None
                 guest_ids.append(customer.user_id)
                 db.session.add(StayDetail(booking_id=booking.id, rental_id=rental.id,
                                           customer_id=customer.user_id))
+
+    if len(guest_ids) < len(rooms):
+        db.session.rollback()
+        raise ValueError("Mỗi phòng thuê phải có ít nhất 1 khách lưu trú!")
 
     # Mỗi phòng ở tối đa max_guests khách
     if len(guest_ids) > reg.max_guests * len(rooms):
@@ -338,16 +391,18 @@ def create_walkin_rental(staff_user_id, room_ids, expected_checkout, guests):
         raise ValueError("Vui lòng chọn ít nhất 1 phòng!")
     if not guests:
         raise ValueError("Vui lòng nhập thông tin ít nhất 1 khách!")
-    if expected_checkout.date() < now.date():
-        raise ValueError("Ngày trả phòng không được nhỏ hơn hôm nay!")
+    if expected_checkout.date() <= now.date():
+        raise ValueError("Ngày trả phòng phải sau ngày hôm nay!")
+    if len(guests) < len(room_ids):
+        raise ValueError("Mỗi phòng thuê phải có ít nhất 1 khách lưu trú!")
     if len(guests) > reg.max_guests * len(room_ids):
         raise ValueError("Số lượng khách vượt quá quy định tối đa " + str(reg.max_guests) + " khách/phòng!")
 
     rooms = []
     for r_id in room_ids:
         room = Room.query.get(int(r_id))
-        if not room or room.status != RoomStatus.AVAILABLE:
-            raise ValueError("Có phòng được chọn không còn trống!")
+        if not room or room.status != RoomStatus.AVAILABLE or not is_room_free(room.id, now, expected_checkout):
+            raise ValueError("Có phòng không còn trống hoặc đã có người đặt trong thời gian thuê!")
         rooms.append(room)
 
     rental = Rental(
@@ -395,8 +450,8 @@ def create_booking_at_counter(room_ids, expected_checkin, expected_checkout, gue
     selected_rooms = {}
     for r_id in room_ids:
         room = Room.query.get(int(r_id))
-        if not room or room.status != RoomStatus.AVAILABLE:
-            raise ValueError("Có phòng được chọn không còn trống!")
+        if not room:
+            raise ValueError("Không tìm thấy phòng được chọn!")
         selected_rooms[str(room.id)] = {
             'id': room.id,
             'room_number': room.room_number,
@@ -415,9 +470,39 @@ def create_booking_at_counter(room_ids, expected_checkin, expected_checkout, gue
 
 
 # 5. Checkout, Pre-payment, Invoice Creation & Electronic Invoice Email
+# Tính tiền phòng của 1 phiếu thuê. Dùng chung cho hóa đơn và số tiền gửi sang MoMo
+# để hai con số luôn giống nhau. Trả về (tổng tiền phòng, danh sách chi tiết từng phòng)
+def calculate_rental_bill(rental, is_prepaid):
+    reg = get_current_regulation()
+    end_date = rental.expected_checkout if is_prepaid else datetime.now()
+    stay_days = calculate_stay_days(rental.checkin_date, end_date)
+
+    total_room_amount = 0.0
+    lines = []
+    for rd in rental.rental_details:
+        # Khách đang ở phòng này
+        room_stays = [st for st in rental.stay_details if st.room_id == rd.room_id]
+        guest_count = max(1, len(room_stays))
+
+        # Hệ số của phòng = hệ số lớn nhất trong các loại khách của phòng (vd có khách nước ngoài -> 1.5)
+        coefficients = [st.customer.customer_type.coefficient for st in room_stays]
+        guest_factor = max(coefficients) if coefficients else 1.0
+
+        calc = calculate_room_checkout(
+            base_price=rd.room.room_type.base_price,
+            stay_days=stay_days,
+            guest_count=guest_count,
+            guest_factor=guest_factor,
+            regulation=reg
+        )
+        total_room_amount += calc['room_total']
+        lines.append({'room_id': rd.room_id, 'applied_price': rd.room.room_type.base_price, 'calc': calc})
+
+    return total_room_amount, lines
+
+
 def checkout_and_create_invoice(rental_id, staff_user_id, payment_method="Tiền mặt", is_prepaid=False):
     rental = Rental.query.get(rental_id)
-    reg = get_current_regulation()
     now = datetime.now()
 
     if not rental or rental.status != RentalStatus.ACTIVE:
@@ -437,13 +522,13 @@ def checkout_and_create_invoice(rental_id, staff_user_id, payment_method="Tiền
 
     # Case 2: Calculate room charges and create invoice
     all_stays = rental.stay_details
-    stay_days = calculate_stay_days(rental.checkin_date, rental.expected_checkout if is_prepaid else now)
+    total_room_amount, lines = calculate_rental_bill(rental, is_prepaid)
 
     invoice = Invoice(
         payment_date=now,
-        total_room_amount=0.0,
+        total_room_amount=total_room_amount,
         deposit_deducted=rental.deposit_deducted,
-        final_amount=0.0,
+        final_amount=max(0.0, total_room_amount - rental.deposit_deducted),
         payment_method=payment_method,
         rental_id=rental.id,
         staff_id=staff_user_id
@@ -451,45 +536,23 @@ def checkout_and_create_invoice(rental_id, staff_user_id, payment_method="Tiền
     db.session.add(invoice)
     db.session.flush()
 
-    total_room_amount = 0.0
-
-    for rd in rental.rental_details:
-        if not is_prepaid:
-            rd.actual_checkout = now
-            rd.room.status = RoomStatus.CLEANING
-
-        # Khách đang ở phòng này
-        room_stays = [st for st in all_stays if st.room_id == rd.room_id]
-        guest_count = max(1, len(room_stays))
-
-        # Hệ số của phòng = hệ số lớn nhất trong các loại khách của phòng (vd có khách nước ngoài -> 1.5)
-        coefficients = [st.customer.customer_type.coefficient for st in room_stays]
-        guest_factor = max(coefficients) if coefficients else 1.0
-
-        calc = calculate_room_checkout(
-            base_price=rd.room.room_type.base_price,
-            stay_days=stay_days,
-            guest_count=guest_count,
-            guest_factor=guest_factor,
-            regulation=reg
-        )
-        total_room_amount += calc['room_total']
-
-        inv_detail = InvoiceDetail(
+    for line in lines:
+        calc = line['calc']
+        db.session.add(InvoiceDetail(
             invoice_id=invoice.id,
-            room_id=rd.room_id,
+            room_id=line['room_id'],
             stay_days=calc['stay_days'],
-            applied_price=rd.room.room_type.base_price,
+            applied_price=line['applied_price'],
             extra_guest_rate=calc['extra_guest_rate'],
             guest_factor=calc['guest_factor'],
             room_total=calc['room_total']
-        )
-        db.session.add(inv_detail)
+        ))
 
-    invoice.total_room_amount = total_room_amount
-    invoice.final_amount = max(0.0, total_room_amount - rental.deposit_deducted)
-
+    # Trả phòng thật sự (không phải thanh toán trước): ghi giờ trả, phòng chuyển sang đang dọn
     if not is_prepaid:
+        for rd in rental.rental_details:
+            rd.actual_checkout = now
+            rd.room.status = RoomStatus.CLEANING
         rental.status = RentalStatus.PAID
 
     db.session.commit()

@@ -17,6 +17,7 @@
                     <th>Tổng tiền dự kiến</th>
                     <th>Tiền cọc (20%)</th>
                     <th>Trạng thái</th>
+                    <th>Phiếu</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -47,6 +48,8 @@
                             {% else %}
                                 <span class="badge bg-secondary">Đã hủy</span>
                             {% endif %}
+                        </td>
+                        <td><a href="/booking-slip/{{ b.id }}" class="btn btn-sm btn-outline-primary">Xem / In phiếu</a>
                         </td>
                     </tr>
                 {% endfor %}

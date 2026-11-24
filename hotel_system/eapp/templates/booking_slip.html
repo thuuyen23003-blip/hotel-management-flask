@@ -1,0 +1,99 @@
+{% extends 'layout/base.html' %}
+
+{% block title %}Phiếu đặt phòng {{ booking.id }}{% endblock %}
+
+{% block head_extra %}
+    <link href="{{ url_for('static', filename='css/print.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+    <div class="container mt-4 mb-5" style="max-width: 850px;">
+        <div class="d-flex justify-content-between align-items-center mb-3 d-print-none">
+            <a href="{{ back_url }}" class="btn btn-outline-secondary btn-sm">&larr; Quay lại</a>
+            <button onclick="window.print()" class="btn btn-success btn-sm">In phiếu đặt phòng</button>
+        </div>
+
+        {% if request.args.get('new') %}
+            <div class="alert alert-success d-print-none">Lập phiếu đặt phòng thành công. Bạn có thể in phiếu cho
+                khách.
+            </div>
+        {% endif %}
+
+        <div class="card shadow-sm border-dark print-box">
+            <div class="card-body p-4">
+                <div class="d-flex justify-content-between border-bottom pb-2 mb-3">
+                    <div>
+                        <h5 class="fw-bold mb-0">AURELIA HOTEL &amp; SUITES</h5>
+                        <div class="small text-muted">Mã phiếu đặt: <strong>{{ booking.id }}</strong></div>
+                    </div>
+                    <div class="small text-muted text-end">Ngày
+                        lập: {{ booking.booking_date.strftime('%d/%m/%Y %H:%M') }}</div>
+                </div>
+
+                <h4 class="text-center fw-bold text-uppercase mb-3">Phiếu đặt phòng</h4>
+
+                <table class="table table-bordered align-middle mb-3">
+                    <tr>
+                        <td style="width: 50%;"><strong>Họ tên người đặt:</strong> {{ booking.customer.user.full_name }}
+                        </td>
+                        <td><strong>Phòng đặt:</strong>
+                            {% for d in booking.details %}{{ d.room.room_number }}{% if not loop.last %},
+                            {% endif %}{% endfor %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Ngày nhận phòng:</strong> {{ booking.expected_checkin.strftime('%d/%m/%Y') }}</td>
+                        <td><strong>Ngày trả phòng:</strong> {{ booking.expected_checkout.strftime('%d/%m/%Y') }}</td>
+                    </tr>
+                </table>
+
+                <table class="table table-bordered table-sm align-middle mb-3">
+                    <thead class="table-light text-center">
+                    <tr>
+                        <th>STT</th>
+                        <th>Khách hàng</th>
+                        <th>Loại khách</th>
+                        <th>CMND</th>
+                        <th>Địa chỉ</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for s in booking.stay_details %}
+                        <tr>
+                            <td class="text-center">{{ loop.index }}</td>
+                            <td>{{ s.customer.user.full_name }}</td>
+                            <td class="text-center">{{ s.customer.customer_type.name }}</td>
+                            <td>{{ s.customer.user.identity_card }}</td>
+                            <td>{{ s.customer.user.address or '' }}</td>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="small mb-1">Tổng tiền dự kiến: <strong>{{ "{:,.0f}".format(booking.total_estimated) }}
+                    VNĐ</strong></div>
+                <div class="small mb-3">Tiền cọc đã đóng: <strong>{{ "{:,.0f}".format(booking.deposit_amount) }}
+                    VNĐ</strong></div>
+
+                <p class="fst-italic small mb-0">
+                    <strong>Quy định:</strong> Thời điểm nhận phòng không quá {{ max_hold_days }} ngày kể từ thời điểm
+                    đặt phòng.
+                </p>
+
+                <div class="row text-center mt-4 pt-3 small">
+                    <div class="col-6">
+                        <div class="fw-bold">Người đặt phòng</div>
+                        <div class="text-muted">(Ký và ghi rõ họ tên)</div>
+                        <div class="sign-area"></div>
+                        <div class="fw-semibold">{{ booking.customer.user.full_name }}</div>
+                    </div>
+                    <div class="col-6">
+                        <div class="fw-bold">Khách sạn xác nhận</div>
+                        <div class="text-muted">(Ký và ghi rõ họ tên)</div>
+                        <div class="sign-area"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

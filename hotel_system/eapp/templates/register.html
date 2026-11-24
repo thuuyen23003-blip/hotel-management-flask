@@ -3,82 +3,88 @@
 {% block title %}Đăng ký tài khoản - Aurelia Hotel & Suites{% endblock %}
 
 {% block content %}
-<div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card shadow-sm">
-            <div class="card-header bg-dark text-white text-center py-3">
-                <h4 class="mb-0">ĐĂNG KÝ TÀI KHOẢN KHÁCH HÀNG</h4>
-            </div>
-            <div class="card-body p-4">
-                {% if err_msg %}
-                <div class="alert alert-danger">{{ err_msg }}</div>
-                {% endif %}
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark text-white text-center py-3">
+                    <h4 class="mb-0">ĐĂNG KÝ TÀI KHOẢN KHÁCH HÀNG</h4>
+                </div>
+                <div class="card-body p-4">
+                    {% if err_msg %}
+                        <div class="alert alert-danger">{{ err_msg }}</div>
+                    {% endif %}
 
-                <form method="post" action="/register" enctype="multipart/form-data">
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Họ và tên <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="full_name" required>
+                    <form method="post" action="/register" enctype="multipart/form-data">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Họ và tên <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="full_name" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Số CCCD / Hộ chiếu <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="identity_card" required>
+                            </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Số CCCD / Hộ chiếu <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="identity_card" required>
-                        </div>
-                    </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Số điện thoại <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="phone" required>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Số điện thoại <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="phone" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Email (Nhận xác nhận đặt phòng)</label>
+                                <input type="email" class="form-control" name="email" placeholder="example@gmail.com">
+                            </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Email (Nhận xác nhận đặt phòng)</label>
-                            <input type="email" class="form-control" name="email" placeholder="example@gmail.com">
-                        </div>
-                    </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Loại khách hàng</label>
-                            <select class="form-select" name="customer_type_id">
-                                {% for ct in customer_types %}
-                                <option value="{{ ct.id }}">{{ ct.name }}</option>
-                                {% endfor %}
-                            </select>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Loại khách hàng</label>
+                                <select class="form-select" name="customer_type_id">
+                                    {% for ct in customer_types %}
+                                        <option value="{{ ct.id }}">{{ ct.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label class="form-label fw-semibold">Địa chỉ</label>
+                                <input type="text" class="form-control" name="address">
+                            </div>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Địa chỉ</label>
-                            <input type="text" class="form-control" name="address">
-                        </div>
-                    </div>
 
-                    <hr>
-                    <div class="row">
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-semibold">Tên đăng nhập <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="username" required>
+                        <hr>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-semibold">Tên đăng nhập <span
+                                        class="text-danger">*</span></label>
+                                <input type="text" class="form-control" name="username" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-semibold">Mật khẩu <span
+                                        class="text-danger">*</span></label>
+                                <input type="password" class="form-control" name="password" required>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-semibold">Xác nhận mật khẩu <span
+                                        class="text-danger">*</span></label>
+                                <input type="password" class="form-control" name="confirm" required>
+                            </div>
                         </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-semibold">Mật khẩu <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" name="password" required>
-                        </div>
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label fw-semibold">Xác nhận mật khẩu <span class="text-danger">*</span></label>
-                            <input type="password" class="form-control" name="confirm" required>
-                        </div>
-                    </div>
 
-                    <div class="mb-3">
-                        <label class="form-label fw-semibold">Ảnh đại diện (Tùy chọn)</label>
-                        <input type="file" class="form-control" name="avatar" accept="image/*">
-                    </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Ảnh đại diện (Tùy chọn)</label>
+                            <input type="file" class="form-control" name="avatar" accept="image/*">
+                        </div>
 
-                    <div class="d-grid mt-4">
-                        <button type="submit" class="btn btn-primary">Hoàn tất đăng ký</button>
-                    </div>
-                </form>
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary">Hoàn tất đăng ký</button>
+                        </div>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
 {% endblock %}

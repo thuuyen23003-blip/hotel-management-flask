@@ -1,0 +1,42 @@
+<div style="font-family: Arial, sans-serif; max-width: 640px; margin: 0 auto; color: #222;">
+    <h2 style="margin-bottom: 0;">AURELIA HOTEL &amp; SUITES</h2>
+    <div style="color: #666; font-size: 13px;">Mã phiếu đặt: <strong>{{ booking.id }}</strong> &bull; Ngày lập: {{ booking.booking_date.strftime('%d/%m/%Y %H:%M') }}</div>
+
+    <h3 style="text-align: center; text-transform: uppercase; margin: 20px 0 12px;">Phiếu đặt phòng</h3>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px;" border="1" cellpadding="8">
+        <tr>
+            <td style="width: 50%;"><strong>Họ tên người đặt:</strong> {{ booking.customer.user.full_name }}</td>
+            <td><strong>Phòng đặt:</strong>
+                {% for d in booking.details %}{{ d.room.room_number }}{% if not loop.last %}, {% endif %}{% endfor %}
+            </td>
+        </tr>
+        <tr>
+            <td><strong>Ngày nhận phòng:</strong> {{ booking.expected_checkin.strftime('%d/%m/%Y') }}</td>
+            <td><strong>Ngày trả phòng:</strong> {{ booking.expected_checkout.strftime('%d/%m/%Y') }}</td>
+        </tr>
+    </table>
+
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 14px;" border="1" cellpadding="6">
+        <tr style="background: #eee; text-align: center;">
+            <th>STT</th>
+            <th>Khách hàng</th>
+            <th>Loại khách</th>
+            <th>CMND</th>
+            <th>Địa chỉ</th>
+        </tr>
+        {% for s in booking.stay_details %}
+        <tr>
+            <td style="text-align: center;">{{ loop.index }}</td>
+            <td>{{ s.customer.user.full_name }}</td>
+            <td style="text-align: center;">{{ s.customer.customer_type.name }}</td>
+            <td>{{ s.customer.user.identity_card }}</td>
+            <td>{{ s.customer.user.address or '' }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <p style="margin: 4px 0;">Tổng tiền dự kiến: <strong>{{ "{:,.0f}".format(booking.total_estimated) }} VNĐ</strong></p>
+    <p style="margin: 4px 0;">Tiền cọc đã đóng: <strong>{{ "{:,.0f}".format(booking.deposit_amount) }} VNĐ</strong></p>
+    <p style="font-style: italic; font-size: 13px;"><strong>Quy định:</strong> Thời điểm nhận phòng không quá {{ max_hold_days }} ngày kể từ thời điểm đặt phòng. Vui lòng mang theo CMND/CCCD khi đến nhận phòng.</p>
+</div>
