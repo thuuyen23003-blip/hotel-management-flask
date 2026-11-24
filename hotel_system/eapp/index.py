@@ -135,7 +135,11 @@ def register_view():
                     avatar=avatar_url,
                     customer_type_id=int(request.form.get('customer_type_id'))
                 )
+                next_page = request.args.get('next')
+                if next_page:
+                    return redirect('/login?next=' + next_page)
                 return redirect('/login')
+
             except Exception as ex:
                 err_msg = "Lỗi đăng ký (Trùng tên đăng nhập hoặc CCCD): " + str(ex)
 

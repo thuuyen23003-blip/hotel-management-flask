@@ -16,7 +16,7 @@
 
                     <p class="text-danger small mb-3">* Thông tin bắt buộc nhập</p>
 
-                    <form method="post" action="/register" enctype="multipart/form-data">
+                    <form method="post" action="/register{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}" enctype="multipart/form-data">
                         <div class="row g-3">
                             <div class="col-md-6">
                                 <label class="form-label fw-semibold">Họ và tên <span class="text-danger">*</span></label>

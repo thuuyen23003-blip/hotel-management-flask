@@ -24,65 +24,50 @@
     </div>
 </nav>
 
-
-<div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="leftSidebar" style="width: 280px;">
+<div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="mainSidebarMenu">
     <div class="offcanvas-header border-bottom border-secondary">
         <h5 class="offcanvas-title fw-bold">Aurelia Hotel &amp; Suites</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
     </div>
-
     <div class="offcanvas-body d-flex flex-column justify-content-between">
-        <div>
+        <div class="list-group list-group-flush">
+            <a href="/" class="list-group-item list-group-item-action bg-dark text-white border-secondary">
+                Trang chủ &amp; Tìm phòng
+            </a>
+            <a href="/booking-list" class="list-group-item list-group-item-action bg-dark text-white border-secondary">
+                Danh sách phòng đang chọn ({{ selected_summary.total_rooms }})
+            </a>
+
             {% if current_user.is_authenticated %}
-                <div class="d-flex align-items-center mb-3 pb-3 border-bottom border-secondary">
-                    <img src="{{ current_user.user.avatar }}" alt="Avatar"
-                         class="rounded-circle me-2" width="42" height="42" style="object-fit: cover;">
-                    <div>
-                        <div class="fw-semibold">{{ current_user.user.full_name }}</div>
-                        <small class="text-secondary">{{ current_user.role.name }}</small>
-                    </div>
-                </div>
-            {% endif %}
-
-            <ul class="nav nav-pills flex-column gap-1">
-                <li class="nav-item">
-                    <a class="nav-link text-white" href="/">Trang chủ &amp; Tìm phòng</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link text-white" href="/booking-list">Danh sách phòng đang chọn</a>
-                </li>
-
-                {% if current_user.is_authenticated %}
-                    <li class="nav-item">
-                        <a class="nav-link text-white" href="/my-bookings">Lịch sử đặt phòng của tôi</a>
-                    </li>
-
-                    {% if current_user.role.name in ['STAFF', 'MANAGER'] %}
-                        <li class="nav-item mt-2 pt-2 border-top border-secondary">
-                            <small class="text-uppercase text-secondary px-3">Nghiệp vụ Khách sạn</small>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-warning" href="/reception">Quầy Lễ tân (Check-in / Out)</a>
-                        </li>
-                    {% endif %}
-
-                    {% if current_user.role.name == 'MANAGER' %}
-                        <li class="nav-item">
-                            <a class="nav-link text-info" href="/admin">Trang Quản trị &amp; Thống kê</a>
-                        </li>
-                    {% endif %}
+                <a href="/my-bookings" class="list-group-item list-group-item-action bg-dark text-white border-secondary">
+                    Lịch sử đặt phòng của tôi
+                </a>
+                {% if current_user.role.name in ['STAFF', 'MANAGER'] %}
+                <a href="/reception" class="list-group-item list-group-item-action bg-dark text-warning border-secondary fw-semibold">
+                    Bàn làm việc Lễ tân
+                </a>
                 {% endif %}
-            </ul>
+                {% if current_user.role.name == 'MANAGER' %}
+                <a href="/admin" class="list-group-item list-group-item-action bg-dark text-info border-secondary fw-semibold">
+                    Quản trị hệ thống &amp; Báo cáo
+                </a>
+                {% endif %}
+            {% else %}
+                <a href="/login" class="list-group-item list-group-item-action bg-dark text-white border-secondary">
+                    Đăng nhập hệ thống
+                </a>
+                <a href="/register" class="list-group-item list-group-item-action bg-dark text-white border-secondary">
+                    Đăng ký tài khoản khách hàng
+                </a>
+            {% endif %}
         </div>
 
-        <div class="border-top border-secondary pt-3">
+        <div class="border-top border-secondary pt-3 small text-secondary">
             {% if current_user.is_authenticated %}
-                <a href="/logout" class="btn btn-outline-danger w-100">Đăng xuất</a>
+                Đang đăng nhập: <strong class="text-white">{{ current_user.user.full_name }}</strong>
+                <a href="/logout" class="btn btn-outline-danger btn-sm w-100 mt-2">Đăng xuất</a>
             {% else %}
-                <div class="d-grid gap-2">
-                    <a href="/login" class="btn btn-primary">Đăng nhập</a>
-                    <a href="/register" class="btn btn-outline-light">Đăng ký tài khoản</a>
-                </div>
+                Chào mừng Quý khách đến với Aurelia Hotel &amp; Suites!
             {% endif %}
         </div>
     </div>

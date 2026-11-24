@@ -32,7 +32,7 @@
 
                     <div class="text-center mt-3">
                         <span class="text-muted small">Chưa có tài khoản khách hàng?</span>
-                        <a href="/register" class="small fw-semibold text-decoration-none">Đăng ký ngay</a>
+                        <a href="/register{% if request.args.get('next') %}?next={{ request.args.get('next') }}{% endif %}" class="small fw-semibold text-decoration-none">Đăng ký ngay</a>
                     </div>
                 </div>
             </div>
