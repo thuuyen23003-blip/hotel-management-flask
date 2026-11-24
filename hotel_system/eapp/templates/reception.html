@@ -2,7 +2,7 @@
 
 {% block content %}
     <div class="container mt-4 mb-5">
-        <h2 class="fw-bold mb-3">Quầy Lễ Tân — Aurelia Hotel &amp; Suites</h2>
+        <h2 class="fw-bold mb-3">Bàn Làm Việc Lễ Tân — Aurelia Hotel &amp; Suites</h2>
 
         {% if request.args.get('msg') %}
             <div class="alert alert-success alert-dismissible fade show">
@@ -18,12 +18,13 @@
             </div>
         {% endif %}
 
+        <!-- 1. Sơ đồ trạng thái phòng chia tầng -->
         <div class="card shadow-sm mb-4">
             <div class="card-header bg-dark text-white d-flex flex-wrap justify-content-between align-items-center gap-2">
                 <h5 class="mb-0">Sơ đồ trạng thái phòng hiện tại</h5>
                 <div class="d-flex flex-wrap align-items-center gap-2">
                     <span class="badge bg-secondary">Trống</span>
-                    <span class="badge bg-danger">Đã đặt</span>
+                    <span class="badge bg-warning text-dark">Đã đặt hôm nay</span>
                     <span class="badge bg-success">Đang thuê</span>
                     <span class="badge bg-primary">Đang dọn</span>
                     <select id="floorFilter" class="form-select form-select-sm w-auto ms-2"
@@ -38,26 +39,8 @@
             <div class="card-body">
                 <div class="row" id="roomMapGrid">
                     {% for r in rooms %}
-                        {# Phòng đang trống nhưng có phiếu đặt trong hôm nay thì hiện "Đã đặt" #}
-                        {% set st = 'BOOKED' if (r.status.name == 'AVAILABLE' and r.id in booked_today) else r.status.name %}
                         <div class="col-md-2 col-sm-4 col-6 mb-3 room-card-item" data-floor="{{ r.room_number[0] }}">
-                            {% if st == 'AVAILABLE' %}
-                                <div class="card text-center h-100 border-secondary bg-light">
-                                    <div class="card-body p-2">
-                                        <h6 class="fw-bold mb-1">Phòng {{ r.room_number }}</h6>
-                                        <p class="text-muted small mb-1">{{ r.room_type.name }}</p>
-                                        <span class="badge bg-secondary">Trống</span>
-                                    </div>
-                                </div>
-                            {% elif st == 'BOOKED' %}
-                                <div class="card text-center h-100 border-danger bg-danger bg-opacity-10">
-                                    <div class="card-body p-2">
-                                        <h6 class="fw-bold text-danger mb-1">Phòng {{ r.room_number }}</h6>
-                                        <p class="text-muted small mb-1">{{ r.room_type.name }}</p>
-                                        <span class="badge bg-danger">Đã đặt</span>
-                                    </div>
-                                </div>
-                            {% elif st == 'OCCUPIED' %}
+                            {% if r.status.name == 'OCCUPIED' %}
                                 <div class="card text-center h-100 border-success bg-success bg-opacity-10">
                                     <div class="card-body p-2">
                                         <h6 class="fw-bold text-success mb-1">Phòng {{ r.room_number }}</h6>
@@ -65,7 +48,7 @@
                                         <span class="badge bg-success">Đang thuê</span>
                                     </div>
                                 </div>
-                            {% else %}
+                            {% elif r.status.name == 'CLEANING' %}
                                 <div class="card text-center h-100 border-primary bg-primary bg-opacity-10">
                                     <div class="card-body p-2">
                                         <h6 class="fw-bold text-primary mb-1">Phòng {{ r.room_number }}</h6>
@@ -77,6 +60,22 @@
                                         </form>
                                     </div>
                                 </div>
+                            {% elif r.id in booked_today %}
+                                <div class="card text-center h-100 border-warning bg-warning bg-opacity-10">
+                                    <div class="card-body p-2">
+                                        <h6 class="fw-bold text-dark mb-1">Phòng {{ r.room_number }}</h6>
+                                        <p class="text-muted small mb-1">{{ r.room_type.name }}</p>
+                                        <span class="badge bg-warning text-dark">Đã đặt hôm nay</span>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="card text-center h-100 border-secondary bg-light">
+                                    <div class="card-body p-2">
+                                        <h6 class="fw-bold mb-1">Phòng {{ r.room_number }}</h6>
+                                        <p class="text-muted small mb-1">{{ r.room_type.name }}</p>
+                                        <span class="badge bg-secondary">Trống</span>
+                                    </div>
+                                </div>
                             {% endif %}
                         </div>
                     {% endfor %}
@@ -84,222 +83,300 @@
             </div>
         </div>
 
-        <div class="row mb-4">
-            <div class="col-md-6 mb-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-primary text-white">
-                        <h5 class="mb-0">Check-in Khách Đặt Trước</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="get" action="/reception" class="input-group mb-3">
-                            <input type="text" class="form-control" name="kw" value="{{ kw or '' }}"
-                                   placeholder="Tìm phiếu đặt theo họ tên khách...">
-                            <button type="submit" class="btn btn-outline-primary">Tìm</button>
-                        </form>
+        <!-- 2. Thanh Menu Chính Chuyển Đổi Nghiệp Vụ Lễ Tân -->
+        <ul class="nav nav-pills nav-fill bg-white p-2 rounded shadow-sm mb-4 border" id="receptionMainTabs"
+            role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold" id="tab-create-form" data-bs-toggle="pill"
+                        data-bs-target="#pane-create-form" type="button" role="tab">
+                    1. Lập Phiếu Theo Đối Tượng Khách
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold" id="tab-active-rentals" data-bs-toggle="pill"
+                        data-bs-target="#pane-active-rentals" type="button" role="tab">
+                    2. Danh Sách Phiếu Đang Thuê &amp; Trả Phòng ({{ active_rentals|length }})
+                </button>
+            </li>
+        </ul>
 
-                        <form method="post" action="/reception/checkin">
-                            <input type="hidden" name="checkin_type" value="booking">
-
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Chọn phiếu đặt phòng chờ nhận:</label>
-                                <select class="form-select" name="booking_id" required>
-                                    <option value="">-- Chọn phiếu đặt phòng --</option>
-                                    {% for b in pending_bookings %}
-                                        <option value="{{ b.id }}">
-                                            Phiếu #{{ b.id }} - {{ b.customer.user.full_name }}
-                                            ({{ b.customer.user.phone }}) -
-                                            Phòng: {% for d in b.details %}{{ d.room.room_number }} {% endfor %}
-                                        </option>
-                                    {% endfor %}
+        <div class="tab-content">
+            <!-- TAB 1: CHỌN LOẠI PHIẾU THEO ĐỐI TƯỢNG KHÁCH -->
+            <div class="tab-pane fade show active" id="pane-create-form" role="tabpanel">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-body bg-light">
+                        <div class="row align-items-center g-2">
+                            <div class="col-md-4">
+                                <label for="customerScenarioSelect" class="form-label fw-bold mb-0 text-primary">
+                                    Chọn đối tượng khách &amp; loại phiếu cần lập:
+                                </label>
+                            </div>
+                            <div class="col-md-8">
+                                <select id="customerScenarioSelect" class="form-select border-primary fw-semibold"
+                                        onchange="switchReceptionForm()">
+                                    <option value="booked_checkin" selected>
+                                        Khách đã đặt phòng trước — Lập Phiếu Thuê Phòng (Check-in)
+                                    </option>
+                                    <option value="walkin_checkin">
+                                        Khách vãng lai đến ở ngay — Lập Phiếu Thuê Trực Tiếp
+                                    </option>
+                                    <option value="counter_booking">
+                                        Khách đến đặt phòng cho ngày sau — Lập Phiếu Đặt Phòng Tại Quầy
+                                    </option>
                                 </select>
                             </div>
+                        </div>
+                    </div>
+                </div>
 
-                            <div class="border rounded p-2 bg-light mb-3">
-                                <small class="fw-semibold text-muted d-block mb-2">Tùy chọn: Đổi phòng lúc nhận phòng
-                                    (nếu phòng cũ chưa sẵn sàng)</small>
-                                <div class="row g-2">
-                                    <div class="col-6">
-                                        <select class="form-select form-select-sm" name="old_room_id">
-                                            <option value="">-- Phòng cũ cần đổi --</option>
-                                            {% for b in pending_bookings %}
-                                                {% for d in b.details %}
-                                                    <option value="{{ d.room_id }}">Phiếu #{{ b.id }}:
-                                                        Phòng {{ d.room.room_number }}</option>
+                <!-- Form 1A: Khách đã đặt trước (Check-in) -->
+                <div id="formBox_booked_checkin" class="reception-scenario-box" style="display: block;">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0">Check-in Khách Đặt Trước</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="get" action="/reception" class="input-group mb-3">
+                                <input type="text" name="kw" class="form-control" value="{{ kw or '' }}"
+                                       placeholder="Nhập họ tên khách đặt phòng để tra cứu...">
+                                <button type="submit" class="btn btn-outline-primary">Tìm phiếu</button>
+                            </form>
+
+                            <form method="post" action="/reception/checkin" data-require-one="false"
+                                  onsubmit="return validateGuestForm(this)">
+                                <input type="hidden" name="checkin_type" value="booking">
+
+                                <div class="mb-3">
+                                    <label class="form-label fw-semibold">Chọn phiếu đặt phòng chờ nhận:</label>
+                                    <select class="form-select" name="booking_id" required>
+                                        <option value="">-- Chọn phiếu đặt phòng --</option>
+                                        {% for b in pending_bookings %}
+                                            <option value="{{ b.id }}">
+                                                Phiếu #{{ b.id }} - {{ b.customer.user.full_name }}
+                                                ({{ b.customer.user.phone or b.customer.user.identity_card }}) -
+                                                Nhận: {{ b.expected_checkin.strftime('%d/%m/%Y') }} -
+                                                Phòng: {% for d in b.details %}{{ d.room.room_number }} {% endfor %}
+                                            </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+
+                                <div class="border rounded p-2 bg-light mb-3">
+                                    <small class="fw-semibold text-muted d-block mb-2">Tùy chọn: Đổi phòng lúc nhận
+                                        phòng (nếu phòng cũ chưa sẵn sàng)</small>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <select class="form-select form-select-sm" name="old_room_id">
+                                                <option value="">-- Phòng cũ cần đổi --</option>
+                                                {% for b in pending_bookings %}
+                                                    {% for d in b.details %}
+                                                        <option value="{{ d.room_id }}">Phiếu #{{ b.id }}:
+                                                            Phòng {{ d.room.room_number }}</option>
+                                                    {% endfor %}
                                                 {% endfor %}
-                                            {% endfor %}
-                                        </select>
+                                            </select>
+                                        </div>
+                                        <div class="col-6">
+                                            <select class="form-select form-select-sm" name="new_room_id">
+                                                <option value="">-- Đổi sang phòng trống --</option>
+                                                {% for ar in available_rooms %}
+                                                    <option value="{{ ar.id }}">Phòng {{ ar.room_number }}
+                                                        ({{ ar.room_type.name }})
+                                                    </option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
                                     </div>
-                                    <div class="col-6">
-                                        <select class="form-select form-select-sm" name="new_room_id">
-                                            <option value="">-- Đổi sang phòng trống --</option>
+                                </div>
+
+                                <label class="form-label fw-semibold">Khách lưu trú đi kèm (nếu có, mỗi phòng tối đa 3
+                                    khách):</label>
+                                {% set row_count = 3 %}
+                                {% include 'guest_table.html' %}
+
+                                <button type="submit" class="btn btn-primary w-100 mt-2">Lập Phiếu Thuê Phòng</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Form 1B: Khách vãng lai (Thuê trực tiếp) -->
+                <div id="formBox_walkin_checkin" class="reception-scenario-box" style="display: none;">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0">Check-in Khách Vãng Lai (Thuê trực tiếp)</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="post" action="/reception/checkin" data-require-one="true"
+                                  onsubmit="return validateGuestForm(this)">
+                                <input type="hidden" name="checkin_type" value="walkin">
+
+                                <div class="row mb-3">
+                                    <div class="col-md-8">
+                                        <label class="form-label fw-semibold">Chọn phòng trống (Giữ Ctrl để chọn
+                                            nhiều):</label>
+                                        <select class="form-select" name="room_ids" multiple size="4" required>
                                             {% for ar in available_rooms %}
                                                 <option value="{{ ar.id }}">Phòng {{ ar.room_number }}
-                                                    ({{ ar.room_type.name }})
+                                                    - {{ ar.room_type.name }}
+                                                    ({{ "{:,.0f}".format(ar.room_type.base_price) }}đ)
                                                 </option>
                                             {% endfor %}
                                         </select>
                                     </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label fw-semibold">Ngày trả phòng dự kiến:</label>
+                                        <input type="date" class="form-control" name="expected_checkout" required>
+                                    </div>
                                 </div>
-                            </div>
 
-                            <label class="form-label fw-semibold">Khách lưu trú thêm (nếu có, mỗi phòng tối đa 3
-                                khách):</label>
-                            {% with rows=3 %}{% include 'guest_table.html' %}{% endwith %}
+                                <label class="form-label fw-semibold">Danh sách khách lưu trú (bắt buộc nhập ít nhất
+                                    dòng số 1):</label>
+                                {% set row_count = 6 %}
+                                {% include 'guest_table.html' %}
 
-                            <button type="submit" class="btn btn-primary w-100">Lập Phiếu Thuê Phòng</button>
-                        </form>
+                                <button type="submit" class="btn btn-success w-100 mt-2">Lập Phiếu Thuê Trực Tiếp
+                                </button>
+                            </form>
+                        </div>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-md-6 mb-3">
-                <div class="card shadow-sm h-100">
-                    <div class="card-header bg-success text-white">
-                        <h5 class="mb-0">Check-in Khách Vãng Lai (Thuê trực tiếp)</h5>
-                    </div>
-                    <div class="card-body">
-                        <form method="post" action="/reception/checkin">
-                            <input type="hidden" name="checkin_type" value="walkin">
-
-                            <div class="mb-2">
-                                <label class="form-label fw-semibold">Chọn phòng trống (Giữ Ctrl để chọn nhiều):</label>
-                                <select class="form-select" name="room_ids" multiple size="3" required>
-                                    {% for ar in available_rooms %}
-                                        <option value="{{ ar.id }}">Phòng {{ ar.room_number }} - {{ ar.room_type.name }}
-                                            ({{ "{:,.0f}".format(ar.room_type.base_price) }}đ)
-                                        </option>
-                                    {% endfor %}
-                                </select>
-                            </div>
-
-                            <label class="form-label fw-semibold">Khách lưu trú (mỗi phòng tối đa 3 khách):</label>
-                            {% with rows=6 %}{% include 'guest_table.html' %}{% endwith %}
-
-                            <div class="mb-3">
-                                <label class="form-label fw-semibold">Ngày trả phòng dự kiến:</label>
-                                <input type="date" class="form-control" name="expected_checkout" required>
-                            </div>
-
-                            <button type="submit" class="btn btn-success w-100">Lập Phiếu Thuê Trực Tiếp</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card shadow-sm mb-4">
-            <div class="card-header bg-info text-dark">
-                <h5 class="mb-0">Đặt Phòng Tại Quầy (Khách đến gặp nhân viên)</h5>
-            </div>
-            <div class="card-body">
-                <form method="post" action="/reception/booking">
-                    <div class="row g-3 mb-2">
-                        <div class="col-md-6">
-                            <label class="form-label fw-semibold">Phòng đặt (Giữ Ctrl để chọn nhiều):</label>
-                            <select class="form-select" name="room_ids" multiple size="4" required>
-                                {% for ar in rooms %}
-                                    <option value="{{ ar.id }}">Phòng {{ ar.room_number }} - {{ ar.room_type.name }}
-                                        ({{ "{:,.0f}".format(ar.room_type.base_price) }}đ) -
-                                        hiện: {{ ar.status.value }}</option>
-                                {% endfor %}
-                            </select>
+                <!-- Form 1C: Khách đến đặt phòng trước tại quầy -->
+                <div id="formBox_counter_booking" class="reception-scenario-box" style="display: none;">
+                    <div class="card shadow-sm">
+                        <div class="card-header bg-info text-dark">
+                            <h5 class="mb-0">Đặt Phòng Tại Quầy (Khách đến đặt cho ngày sau)</h5>
                         </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Ngày nhận phòng:</label>
-                            <input type="date" class="form-control" name="expected_checkin" required>
-                        </div>
-                        <div class="col-md-3">
-                            <label class="form-label fw-semibold">Ngày trả phòng:</label>
-                            <input type="date" class="form-control" name="expected_checkout" required>
-                        </div>
-                    </div>
-
-                    <label class="form-label fw-semibold">Danh sách khách (dòng 1 là người đặt phòng):</label>
-                    {% with rows=6 %}{% include 'guest_table.html' %}{% endwith %}
-
-                    <button type="submit" class="btn btn-info w-100">Lập Phiếu Đặt Phòng</button>
-                </form>
-            </div>
-        </div>
-
-        <div class="card shadow-sm">
-            <div class="card-header bg-warning text-dark">
-                <h5 class="mb-0">Danh Sách Phiếu Đang Thuê</h5>
-            </div>
-            <div class="card-body table-responsive">
-                <table class="table table-bordered align-middle mb-0">
-                    <thead class="table-light">
-                    <tr>
-                        <th>Mã Phiếu</th>
-                        <th>Phòng Thuê</th>
-                        <th>Khách Lưu Trú</th>
-                        <th>Nhận Phòng Thực Tế</th>
-                        <th>Trả Dự Kiến</th>
-                        <th>Tiền Cọc Đã Đóng</th>
-                        <th style="width: 240px;">Thanh Toán &amp; Trả Phòng</th>
-                    </tr>
-                    </thead>
-                    <tbody>
-                    {% for r in active_rentals %}
-                        <tr>
-                            <td class="fw-bold">#{{ r.id }}
-                                <div><a href="/rental-slip/{{ r.id }}" class="small fw-normal">In phiếu thuê</a></div>
-                            </td>
-                            <td>
-                                {% for rd in r.rental_details %}
-                                    <span class="badge bg-dark">Phòng {{ rd.room.room_number }}</span>
-                                {% endfor %}
-                            </td>
-                            <td>
-                                {% for s in r.stay_details %}
-                                    <div class="small">{{ s.customer.user.full_name }}
-                                        ({{ s.customer.customer_type.name }})
-                                    </div>
-                                {% endfor %}
-                            </td>
-                            <td>{{ r.checkin_date.strftime('%d/%m/%Y %H:%M') }}</td>
-                            <td>{{ r.expected_checkout.strftime('%d/%m/%Y') }}</td>
-                            <td class="text-success fw-semibold">{{ "{:,.0f}".format(r.deposit_deducted) }} VNĐ</td>
-                            <td>
-                                {% if r.invoice %}
-                                    <span class="badge bg-success mb-2">Đã thanh toán</span>
-                                    <div class="d-flex gap-1">
-                                        <a href="/invoice/{{ r.invoice.id }}?copy=customer"
-                                           class="btn btn-sm btn-outline-secondary w-50">Xem HĐ</a>
-                                        <form method="post" action="/reception/checkout/{{ r.id }}" class="w-50">
-                                            <input type="hidden" name="action_type" value="checkout">
-                                            <button type="submit" class="btn btn-sm btn-danger w-100">Trả phòng</button>
-                                        </form>
-                                    </div>
-                                {% else %}
-                                    <form method="post" action="/reception/checkout/{{ r.id }}">
-                                        <select class="form-select form-select-sm mb-2" name="payment_method">
-                                            <option value="Tiền mặt">Tiền mặt</option>
-                                            <option value="Chuyển khoản bằng MoMo">Chuyển khoản bằng MoMo</option>
+                        <div class="card-body">
+                            <form method="post" action="/reception/booking" data-require-one="true"
+                                  onsubmit="return validateGuestForm(this)">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-semibold">Chọn phòng đặt (Giữ Ctrl để chọn
+                                            nhiều):</label>
+                                        <select class="form-select" name="room_ids" multiple size="4" required>
+                                            {% for r in rooms %}
+                                                <option value="{{ r.id }}">Phòng {{ r.room_number }}
+                                                    - {{ r.room_type.name }}
+                                                    ({{ "{:,.0f}".format(r.room_type.base_price) }}đ)
+                                                </option>
+                                            {% endfor %}
                                         </select>
-                                        <div class="d-flex gap-1">
-                                            <button type="submit" name="action_type" value="prepay"
-                                                    class="btn btn-sm btn-outline-primary w-50">
-                                                Thanh toán trước
-                                            </button>
-                                            <button type="submit" name="action_type" value="checkout"
-                                                    class="btn btn-sm btn-danger w-50">
-                                                Trả phòng
-                                            </button>
-                                        </div>
-                                    </form>
-                                {% endif %}
-                            </td>
-                        </tr>
-                    {% else %}
-                        <tr>
-                            <td colspan="7" class="text-center text-muted py-3">Hiện không có phiếu thuê nào đang hoạt
-                                động.
-                            </td>
-                        </tr>
-                    {% endfor %}
-                    </tbody>
-                </table>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold">Ngày nhận phòng:</label>
+                                        <input type="date" class="form-control" name="expected_checkin" required>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label fw-semibold">Ngày trả phòng:</label>
+                                        <input type="date" class="form-control" name="expected_checkout" required>
+                                    </div>
+                                </div>
+
+                                <label class="form-label fw-semibold">Danh sách khách (dòng số 1 là người đứng tên đặt
+                                    phòng):</label>
+                                {% set row_count = 6 %}
+                                {% include 'guest_table.html' %}
+
+                                <button type="submit" class="btn btn-info w-100 fw-semibold mt-2">Lập Phiếu Đặt Phòng
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: DANH SÁCH PHIẾU ĐANG THUÊ & TRẢ PHÒNG -->
+            <div class="tab-pane fade" id="pane-active-rentals" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">Danh Sách Phiếu Đang Thuê</h5>
+                    </div>
+                    <div class="card-body table-responsive">
+                        <table class="table table-bordered align-middle mb-0">
+                            <thead class="table-light">
+                            <tr>
+                                <th>Mã Phiếu</th>
+                                <th>Phòng Thuê</th>
+                                <th>Khách Lưu Trú</th>
+                                <th>Nhận Phòng Thực Tế</th>
+                                <th>Trả Dự Kiến</th>
+                                <th>Tiền Cọc Đã Đóng</th>
+                                <th style="width: 250px;">Thanh Toán &amp; Trả Phòng</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {% for r in active_rentals %}
+                                <tr>
+                                    <td class="fw-bold">
+                                        #{{ r.id }}
+                                        <div><a href="/rental-slip/{{ r.id }}" class="small text-decoration-none">In
+                                            phiếu thuê</a></div>
+                                    </td>
+                                    <td>
+                                        {% for rd in r.rental_details %}
+                                            <span class="badge bg-dark">Phòng {{ rd.room.room_number }}</span>
+                                        {% endfor %}
+                                    </td>
+                                    <td>
+                                        {% for s in r.stay_details %}
+                                            <div class="small">{{ s.customer.user.full_name }}
+                                                ({{ s.customer.customer_type.name }})
+                                            </div>
+                                        {% endfor %}
+                                    </td>
+                                    <td>{{ r.checkin_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                    <td>{{ r.expected_checkout.strftime('%d/%m/%Y') }}</td>
+                                    <td class="text-success fw-semibold">{{ "{:,.0f}".format(r.deposit_deducted) }}
+                                        VNĐ
+                                    </td>
+                                    <td>
+                                        {% if r.invoice %}
+                                            <span class="badge bg-success mb-2">Đã thanh toán</span>
+                                            <div class="d-flex gap-1">
+                                                <a href="/invoice/{{ r.invoice.id }}?copy=customer"
+                                                   class="btn btn-sm btn-outline-secondary w-50">Xem HĐ</a>
+                                                <form method="post" action="/reception/checkout/{{ r.id }}"
+                                                      class="w-50">
+                                                    <input type="hidden" name="action_type" value="checkout">
+                                                    <button type="submit" class="btn btn-sm btn-danger w-100">Trả
+                                                        phòng
+                                                    </button>
+                                                </form>
+                                            </div>
+                                        {% else %}
+                                            <form method="post" action="/reception/checkout/{{ r.id }}">
+                                                <select class="form-select form-select-sm mb-2" name="payment_method">
+                                                    <option value="Tiền mặt">Tiền mặt</option>
+                                                    <option value="Chuyển khoản bằng MoMo">Chuyển khoản bằng MoMo
+                                                    </option>
+                                                </select>
+                                                <div class="d-flex gap-1">
+                                                    <button type="submit" name="action_type" value="prepay"
+                                                            class="btn btn-sm btn-outline-primary w-50">
+                                                        Thanh toán trước
+                                                    </button>
+                                                    <button type="submit" name="action_type" value="checkout"
+                                                            class="btn btn-sm btn-danger w-50">
+                                                        Trả phòng
+                                                    </button>
+                                                </div>
+                                            </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            {% else %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-3">Hiện không có phiếu thuê nào
+                                        đang hoạt động.
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

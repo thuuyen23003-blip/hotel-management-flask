@@ -273,17 +273,25 @@ def get_guests_from_form():
     for i in range(len(names)):
         name = names[i].strip()
         cccd = cccds[i].strip()
-        if not name and not cccd:
+        addr = addresses[i].strip()
+
+        if not name and not cccd and not addr:
             continue
-        if not name or not cccd:
-            raise ValueError("Dòng khách số " + str(i + 1) + " phải nhập đủ họ tên và CMND!")
+        if not name:
+            raise ValueError("Dòng số " + str(i + 1) + ": Vui lòng nhập họ tên khách hàng!")
+        if not name.replace(" ", "").isalpha() or len(name) < 2:
+            raise ValueError("Dòng số " + str(i + 1) + ": Họ tên khách hàng chỉ được chứa chữ cái!")
+        if not cccd.isdigit() or (len(cccd) != 9 and len(cccd) != 12):
+            raise ValueError("Dòng số " + str(i + 1) + ": Số CMND/CCCD phải gồm 9 hoặc 12 chữ số!")
+
         guests.append({
             'full_name': name,
             'identity_card': cccd,
             'customer_type_id': int(types[i]),
-            'address': addresses[i].strip()
+            'address': addr
         })
     return guests
+
 
 
 @app.route('/reception')
