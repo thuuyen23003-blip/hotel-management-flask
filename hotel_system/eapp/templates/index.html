@@ -92,7 +92,7 @@
                             {{ "{:,.0f}".format(r.room_type.base_price) }} VNĐ
                             <span class="text-muted fs-6 fw-normal">/ đêm</span>
                         </p>
-                        <button onclick="selectRoom({{ r.id }}, '{{ r.room_number }}', '{{ r.room_type.name }}', {{ r.room_type.base_price }})"
+                        <button onclick="btnSelectRoom_Click({{ r.id }}, '{{ r.room_number }}', '{{ r.room_type.name }}', {{ r.room_type.base_price }})"
                                 class="btn btn-primary w-100">
                             + Chọn phòng này
                         </button>

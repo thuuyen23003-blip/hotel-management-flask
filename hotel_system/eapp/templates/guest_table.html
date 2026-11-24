@@ -3,7 +3,7 @@
         <small class="text-danger fw-semibold">
             * Thông tin bắt buộc nhập{% if is_first_representative %} (Dòng số 1 là người đứng tên đại diện){% endif %}
         </small>
-        <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="addGuestRow(this)">
+        <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="btnAddGuest_Click(this)">
             + Thêm khách
         </button>
     </div>
@@ -28,7 +28,7 @@
                     <td>
                         <input type="text" class="form-control form-control-sm"
                                name="guest_name" placeholder="Ví dụ: Nguyễn Văn A"
-                               onblur="checkGuestRow(this)">
+                               onblur="txtGuestInfo_Blur(this)">
                     </td>
                     <td>
                         <select class="form-select form-select-sm" name="guest_type">
@@ -40,16 +40,16 @@
                     <td>
                         <input type="text" class="form-control form-control-sm"
                                name="guest_cccd" placeholder="CCCD 12 số / Hộ chiếu"
-                               onblur="checkGuestRow(this)">
+                               onblur="txtGuestInfo_Blur(this)">
                     </td>
                     <td>
                         <input type="text" class="form-control form-control-sm"
                                name="guest_address" placeholder="Số nhà, đường..."
-                               onblur="checkGuestRow(this)">
+                               onblur="txtGuestInfo_Blur(this)">
                     </td>
                     <td class="text-center remove-cell">
                         <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 d-none"
-                                onclick="removeGuestRow(this)" title="Xóa dòng này">x</button>
+                                onclick="btnRemoveGuest_Click(this)" title="Xóa dòng này">x</button>
                     </td>
                 </tr>
                 <tr style="display: none;">

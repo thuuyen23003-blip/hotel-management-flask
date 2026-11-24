@@ -27,7 +27,7 @@
                     <span class="badge bg-success">Đang thuê</span>
                     <span class="badge bg-primary">Đang dọn</span>
                     <select id="floorFilter" class="form-select form-select-sm w-auto ms-2"
-                            onchange="filterRoomsByFloor()">
+                            onchange="cboFloor_Change()">
                         <option value="ALL">Tất cả các tầng ({{ rooms|length }} phòng)</option>
                         {% for f in floors %}
                             <option value="{{ f }}">Tầng {{ f }}</option>
@@ -111,7 +111,7 @@
                             <div class="col-md-8">
                                 {% set active_tab = request.args.get('tab', 'booked_checkin') %}
                                 <select id="customerScenarioSelect" class="form-select border-primary fw-semibold"
-                                        onchange="switchReceptionForm()">
+                                        onchange="cboScenario_Change()">
                                     <option value="booked_checkin"
                                             {% if active_tab == 'booked_checkin' %}selected{% endif %}>
                                         1. Khách đã đặt phòng trước (Nhận phòng từ Phiếu đặt)
@@ -135,9 +135,9 @@
                         <div class="card-body">
                             <div class="input-group mb-3">
                                 <input type="text" id="bookingSearchInput" class="form-control"
-                                       onkeyup="filterPendingBookings()"
+                                       onkeyup="txtSearchBooking_Keyup()"
                                        placeholder="Gõ tên khách, SĐT, CCCD hoặc mã phiếu để lọc nhanh...">
-                                <button type="button" class="btn btn-outline-primary" onclick="filterPendingBookings()">
+                                <button type="button" class="btn btn-outline-primary" onclick="txtSearchBooking_Keyup()">
                                     Tìm phiếu
                                 </button>
                             </div>
@@ -169,7 +169,7 @@
                                             </td>
                                             <td>
                                                 <button type="button" class="btn btn-sm btn-outline-primary w-100"
-                                                        onclick="selectBookingForCheckin(this, {{ b.id }}, '{{ b.customer.user.full_name }}', {{ b.details|length }})">
+                                                        onclick="btnSelectBooking_Click(this, {{ b.id }}, '{{ b.customer.user.full_name }}', {{ b.details|length }})">
                                                     Chọn phiếu
                                                 </button>
                                             </td>
@@ -186,7 +186,7 @@
                             </div>
 
                             <form method="post" action="/reception/checkin" data-require-one="true"
-                                  onsubmit="return validateCheckinBookingForm(this)">
+                                  onsubmit="return frmCheckinBooking_Submit(this)">
                                 <input type="hidden" name="checkin_type" value="booking">
                                 <input type="hidden" id="selectedBookingId" name="booking_id" value="">
 
@@ -249,7 +249,7 @@
                         </div>
                         <div class="card-body">
                             <form method="post" action="/reception/checkin" data-require-one="true"
-                                  onsubmit="return validateGuestForm(this)">
+                                  onsubmit="return frmWalkinCheckin_Submit(this)">
                                 <input type="hidden" name="checkin_type" value="walkin">
 
                                 <div class="row mb-3">

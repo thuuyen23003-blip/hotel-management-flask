@@ -108,3 +108,23 @@ function confirmBooking() {
         }
     });
 }
+
+function btnSelectRoom_Click(id, roomNumber, roomType, basePrice) {
+    selectRoom(id, roomNumber, roomType, basePrice);
+}
+
+function btnRemoveRoom_Click(roomId) {
+    removeRoom(roomId);
+}
+
+function txtExpectedCheckin_Change() {
+    updateBookingTotals();
+}
+
+function txtExpectedCheckout_Change() {
+    updateBookingTotals();
+}
+
+function btnConfirmBooking_Click() {
+    confirmBooking();
+}

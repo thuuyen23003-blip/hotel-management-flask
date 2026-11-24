@@ -253,3 +253,39 @@ function removeGuestRow(btn) {
     tbody.removeChild(dataRow);
     updateGuestRowNumbers(tbody);
 }
+
+function cboFloor_Change() {
+    filterRoomsByFloor();
+}
+
+function cboScenario_Change() {
+    switchReceptionForm();
+}
+
+function txtSearchBooking_Keyup() {
+    filterPendingBookings();
+}
+
+function btnSelectBooking_Click(btn, bookingId, customerName, roomCount) {
+    selectBookingForCheckin(btn, bookingId, customerName, roomCount);
+}
+
+function txtGuestInfo_Blur(inputElem) {
+    checkGuestRow(inputElem);
+}
+
+function btnAddGuest_Click(btn) {
+    addGuestRow(btn);
+}
+
+function btnRemoveGuest_Click(btn) {
+    removeGuestRow(btn);
+}
+
+function frmCheckinBooking_Submit(form) {
+    return validateCheckinBookingForm(form);
+}
+
+function frmWalkinCheckin_Submit(form) {
+    return validateGuestForm(form);
+}

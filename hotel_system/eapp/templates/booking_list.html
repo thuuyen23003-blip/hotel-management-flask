@@ -36,7 +36,7 @@
                                         <td class="text-danger fw-semibold">{{ "{:,.0f}".format(r.base_price) }} VNĐ
                                         </td>
                                         <td>
-                                            <button onclick="removeRoom('{{ r.id }}')"
+                                            <button onclick="btnRemoveRoom_Click('{{ r.id }}')"
                                                     class="btn btn-sm btn-outline-danger w-100">Xóa
                                             </button>
                                         </td>
@@ -60,14 +60,14 @@
                                 <label class="form-label fw-semibold">Ngày nhận phòng dự kiến <span class="text-danger">*</span></label>
                                 <input type="date" id="expected_checkin" class="form-control"
                                        value="{{ default_checkin }}" min="{{ today_str }}"
-                                       onchange="updateBookingTotals()" required>
+                                       onchange="txtExpectedCheckin_Change()" required>
                             </div>
                             <div class="mb-3">
                                 <label class="form-label fw-semibold">Ngày trả phòng dự kiến <span
                                         class="text-danger">*</span></label>
                                 <input type="date" id="expected_checkout" class="form-control"
                                        value="{{ default_checkout }}" min="{{ today_str }}"
-                                       onchange="updateBookingTotals()" required>
+                                       onchange="txtExpectedCheckin_Change()" required>
                             </div>
 
 
@@ -96,7 +96,7 @@
 
 
                             {% if current_user.is_authenticated %}
-                                <button onclick="confirmBooking()" class="btn btn-success w-100 fw-bold py-2">
+                                <button onclick="btnConfirmBooking_Click()" class="btn btn-success w-100 fw-bold py-2">
                                     Xác nhận đặt phòng &amp; Thanh toán cọc MoMo
                                 </button>
                             {% else %}
