@@ -172,3 +172,72 @@ function validateCheckinBookingForm(form) {
     }
     return validateGuestForm(form);
 }
+
+function updateGuestRowNumbers(tbody) {
+    let rows = tbody.getElementsByTagName('tr');
+    let count = 0;
+    for (let i = 0; i < rows.length; i++) {
+        if (rows[i].hasAttribute('data-row')) {
+            count++;
+            rows[i].setAttribute('data-row', count);
+            let sttCell = rows[i].getElementsByClassName('stt-cell');
+            let form = tbody.closest('form');
+            let isRep = (form.getAttribute('data-require-one') === 'true');
+            if (isRep && count === 1) {
+                sttCell.innerHTML = '1 <span class="text-danger">*</span>';
+            } else {
+                sttCell.innerText = count;
+            }
+        }
+    }
+}
+
+function addGuestRow(btn) {
+    let container = btn.parentElement.parentElement;
+    let tbody = container.getElementsByClassName('guest-tbody');
+    let rows = tbody.getElementsByTagName('tr');
+
+    let firstDataRow = rows;
+    let firstErrRow = rows;
+
+    let newDataRow = firstDataRow.cloneNode(true);
+    let newErrRow = firstErrRow.cloneNode(true);
+
+    let inputs = newDataRow.getElementsByTagName('input');
+    for (let i = 0; i < inputs.length; i++) {
+        inputs[i].value = '';
+    }
+    newErrRow.style.display = 'none';
+    newErrRow.getElementsByTagName('small').innerText = '';
+
+    tbody.appendChild(newDataRow);
+    tbody.appendChild(newErrRow);
+    updateGuestRowNumbers(tbody);
+}
+
+function removeGuestRow(btn) {
+    let dataRow = btn.parentElement.parentElement;
+    let errRow = dataRow.nextElementSibling;
+    let tbody = dataRow.parentElement;
+
+    let totalDataRows = 0;
+    let rows = tbody.getElementsByTagName('tr');
+    for (let i = 0; i < rows.length; i++) {
+        if (rows[i].hasAttribute('data-row')) {
+            totalDataRows++;
+        }
+    }
+
+    if (totalDataRows <= 1) {
+        let inputs = dataRow.getElementsByTagName('input');
+        for (let i = 0; i < inputs.length; i++) {
+            inputs[i].value = '';
+        }
+        showRowError(dataRow, '');
+        return;
+    }
+
+    tbody.removeChild(errRow);
+    tbody.removeChild(dataRow);
+    updateGuestRowNumbers(tbody);
+}

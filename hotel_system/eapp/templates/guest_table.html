@@ -1,54 +1,63 @@
-<div class="d-flex justify-content-between align-items-center mb-1">
-    <small class="text-danger fw-semibold">
-        * Thông tin bắt buộc nhập{% if is_first_representative %} (Người đầu tiên là người đứng tên đại diện){% endif %}
-    </small>
-</div>
-<div class="table-responsive">
-    <table class="table table-bordered table-sm align-middle mb-2">
-        <thead class="table-light text-center">
-            <tr>
-                <th style="width: 50px;">STT</th>
-                <th>Khách hàng <span class="text-danger">*</span></th>
-                <th style="width: 140px;">Loại khách <span class="text-danger">*</span></th>
-                <th style="width: 160px;">CMND / CCCD <span class="text-danger">*</span></th>
-                <th>Địa chỉ</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for i in range(1, row_count + 1) %}
-            <tr data-row="{{ i }}">
-                <td class="text-center fw-bold">
-                    {{ i }}{% if is_first_representative and i == 1 %} <span class="text-danger">*</span>{% endif %}
-                </td>
-                <td>
-                    <input type="text" class="form-control form-control-sm"
-                           name="guest_name" placeholder="Ví dụ: Nguyễn Văn A"
-                           onblur="checkGuestRow(this)">
-                </td>
-                <td>
-                    <select class="form-select form-select-sm" name="guest_type">
-                        {% for ct in customer_types %}
-                        <option value="{{ ct.id }}">{{ ct.name }}</option>
-                        {% endfor %}
-                    </select>
-                </td>
-                <td>
-                    <input type="text" class="form-control form-control-sm"
-                           name="guest_cccd" placeholder="9 hoặc 12 số"
-                           onblur="checkGuestRow(this)">
-                </td>
-                <td>
-                    <input type="text" class="form-control form-control-sm"
-                           name="guest_address" placeholder="Số nhà, đường, quận..."
-                           onblur="checkGuestRow(this)">
-                </td>
-            </tr>
-            <tr style="display: none;">
-                <td colspan="5" class="py-1 px-2 border-top-0">
-                    <small class="text-danger"></small>
-                </td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+<div class="guest-table-box">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <small class="text-danger fw-semibold">
+            * Thông tin bắt buộc nhập{% if is_first_representative %} (Dòng số 1 là người đứng tên đại diện){% endif %}
+        </small>
+        <button type="button" class="btn btn-sm btn-outline-primary fw-bold" onclick="addGuestRow(this)">
+            + Thêm khách
+        </button>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm align-middle mb-2">
+            <thead class="table-light text-center text-nowrap">
+                <tr>
+                    <th style="width: 50px;">STT</th>
+                    <th style="min-width: 180px;">Khách hàng <span class="text-danger">*</span></th>
+                    <th style="min-width: 145px;">Loại khách <span class="text-danger">*</span></th>
+                    <th style="min-width: 155px;">CMND / CCCD <span class="text-danger">*</span></th>
+                    <th style="min-width: 180px;">Địa chỉ</th>
+                    <th style="width: 55px;">Xóa</th>
+                </tr>
+            </thead>
+            <tbody class="guest-tbody">
+                <tr data-row="1">
+                    <td class="text-center fw-bold stt-cell">
+                        1{% if is_first_representative %} <span class="text-danger">*</span>{% endif %}
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm"
+                               name="guest_name" placeholder="Ví dụ: Nguyễn Văn A"
+                               onblur="checkGuestRow(this)">
+                    </td>
+                    <td>
+                        <select class="form-select form-select-sm" name="guest_type">
+                            {% for ct in customer_types %}
+                            <option value="{{ ct.id }}">{{ ct.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm"
+                               name="guest_cccd" placeholder="9 hoặc 12 số"
+                               onblur="checkGuestRow(this)">
+                    </td>
+                    <td>
+                        <input type="text" class="form-control form-control-sm"
+                               name="guest_address" placeholder="Số nhà, đường..."
+                               onblur="checkGuestRow(this)">
+                    </td>
+                    <td class="text-center remove-cell">
+                        <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 d-none"
+                                onclick="removeGuestRow(this)" title="Xóa dòng này">x</button>
+                    </td>
+                </tr>
+                <tr style="display: none;">
+                    <td colspan="6" class="py-1 px-2 border-top-0">
+                        <small class="text-danger"></small>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
 </div>

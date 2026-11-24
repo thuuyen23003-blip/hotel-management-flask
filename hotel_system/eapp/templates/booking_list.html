@@ -1,89 +1,98 @@
 {% extends 'layout/base.html' %}
 
-{% block title %}Xác nhận đặt phòng - Aurelia Hotel & Suites{% endblock %}
-
 {% block content %}
-    <h3 class="mb-4">DANH SÁCH PHÒNG ĐANG CHỌN ĐẶT</h3>
+<div class="container">
+    <h2 class="fw-bold mb-3">Danh Sách Phòng Đã Chọn &amp; Xác Nhận Đặt Phòng</h2>
 
     {% if request.args.get('err') %}
-        <div class="alert alert-danger">{{ request.args.get('err') }}</div>
+    <div class="alert alert-danger">{{ request.args.get('err') }}</div>
     {% endif %}
 
-    {% if 'selected_rooms' in session and session['selected_rooms'] %}
-        <div class="row">
-            <div class="col-md-8">
-                <div class="table-responsive">
-                    <table class="table table-bordered table-hover bg-white align-middle">
-                        <thead class="table-dark">
-                        <tr>
-                            <th>Mã phòng</th>
-                            <th>Số phòng</th>
-                            <th>Loại phòng</th>
-                            <th>Đơn giá / đêm</th>
-                            <th class="text-center">Thao tác</th>
-                        </tr>
+    <div id="bookingAlertBox" class="alert alert-danger d-none"></div>
+
+    {% if selected_rooms %}
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">Phòng Đang Chờ Đặt (<span id="selectedCount">{{ selected_summary.total_rooms }}</span> phòng)</h5>
+                </div>
+                <div class="card-body table-responsive">
+                    <table class="table table-bordered align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Phòng</th>
+                                <th>Hạng phòng</th>
+                                <th>Đơn giá / đêm</th>
+                                <th style="width: 90px;">Thao tác</th>
+                            </tr>
                         </thead>
                         <tbody>
-                        {% for r in session['selected_rooms'].values() %}
-                            <tr id="room-row-{{ r.id }}">
-                                <td>#{{ r.id }}</td>
+                            {% for r in selected_rooms.values() %}
+                            <tr id="roomRow_{{ r.id }}">
                                 <td class="fw-bold">Phòng {{ r.room_number }}</td>
                                 <td>{{ r.room_type }}</td>
                                 <td class="text-danger fw-semibold">{{ "{:,.0f}".format(r.base_price) }} VNĐ</td>
-                                <td class="text-center">
-                                    <button type="button" class="btn btn-danger btn-sm"
-                                            onclick="removeRoom('{{ r.id }}')">Bỏ chọn
-                                    </button>
+                                <td>
+                                    <button onclick="removeRoom('{{ r.id }}')" class="btn btn-sm btn-outline-danger w-100">Xóa</button>
                                 </td>
                             </tr>
-                        {% endfor %}
+                            {% endfor %}
                         </tbody>
                     </table>
                 </div>
             </div>
+        </div>
 
-            <div class="col-md-4">
-                <div class="card shadow-sm">
-                    <div class="card-header bg-dark text-white">
-                        <h5 class="mb-0">Thông tin đặt phòng</h5>
+        <div class="col-lg-5">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Thông Tin Nhận – Trả Phòng &amp; Thanh Toán Cọc</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-danger small mb-3">* Thông tin bắt buộc nhập</p>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Ngày nhận phòng dự kiến <span class="text-danger">*</span></label>
+                        <input type="date" id="expectedCheckin" class="form-control" required>
                     </div>
-                    <div class="card-body">
-                        <div class="alert alert-warning small">
-                            <strong>Lưu ý quy định:</strong> Ngày nhận phòng không được cách hôm nay quá
-                            <strong>{{ regulation.max_hold_days }} ngày</strong>. Tiền đặt cọc trước là
-                            <strong>{{ (regulation.deposit_rate * 100)|int }}%</strong>.
-                        </div>
-
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Ngày dự kiến nhận phòng</label>
-                            <input type="date" class="form-control" id="expected_checkin" required>
-                        </div>
-                        <div class="mb-3">
-                            <label class="form-label fw-semibold">Ngày dự kiến trả phòng</label>
-                            <input type="date" class="form-control" id="expected_checkout" required>
-                        </div>
-
-                        <hr>
-                        <p class="mb-1">Tổng số phòng chọn: <strong>{{ selected_summary.total_rooms }} phòng</strong>
-                        </p>
-                        <p class="mb-3">Đơn giá 1 đêm: <strong
-                                class="text-danger">{{ "{:,.0f}".format(selected_summary.total_amount_per_night) }}
-                            VNĐ</strong></p>
-
-                        {% if current_user.is_authenticated %}
-                            <button type="button" class="btn btn-success w-100" onclick="confirmBooking()">Xác nhận đặt
-                                phòng & Cọc 20%
-                            </button>
-                        {% else %}
-                            <a href="/login?next=/booking-list" class="btn btn-primary w-100">Đăng nhập để đặt phòng</a>
-                        {% endif %}
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold">Ngày trả phòng dự kiến <span class="text-danger">*</span></label>
+                        <input type="date" id="expectedCheckout" class="form-control" required>
                     </div>
+
+                    <div class="bg-light p-3 rounded mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span>Tổng tiền phòng dự kiến (1 đêm):</span>
+                            <strong id="estimatedTotal">{{ "{:,.0f}".format(selected_summary.total_amount) }} VNĐ</strong>
+                        </div>
+                        <div class="d-flex justify-content-between text-danger">
+                            <span>Tiền cọc bắt buộc ({{ (regulation.deposit_rate * 100)|int }}%):</span>
+                            <strong id="depositAmount">{{ "{:,.0f}".format(selected_summary.total_amount * regulation.deposit_rate) }} VNĐ</strong>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            Quy định: Thời gian nhận phòng không quá <strong>{{ regulation.max_hold_days }} ngày</strong> kể từ ngày đặt.
+                        </small>
+                    </div>
+
+                    {% if current_user.is_authenticated %}
+                    <button onclick="confirmBooking()" class="btn btn-success w-100 fw-bold py-2">
+                        Xác nhận đặt phòng &amp; Thanh toán cọc MoMo
+                    </button>
+                    {% else %}
+                    <a href="/login?next=/booking-list" class="btn btn-warning w-100 fw-bold">
+                        Đăng nhập để hoàn tất đặt phòng
+                    </a>
+                    {% endif %}
                 </div>
             </div>
         </div>
+    </div>
     {% else %}
-        <div class="alert alert-info">
-            Danh sách chọn phòng của bạn đang trống. <a href="/" class="alert-link">Quay lại trang chủ để chọn phòng</a>.
-        </div>
+    <div class="alert alert-info text-center py-4">
+        <p class="mb-3">Bạn chưa chọn phòng nào vào danh sách đặt phòng.</p>
+        <a href="/" class="btn btn-primary">Quay lại trang chủ chọn phòng</a>
+    </div>
     {% endif %}
+</div>
 {% endblock %}
