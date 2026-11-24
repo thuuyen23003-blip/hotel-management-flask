@@ -7,6 +7,56 @@ import requests
 from flask import render_template
 from flask_mail import Message
 from eapp import app, mail
+from email.mime.application import MIMEApplication
+from fpdf import FPDF
+
+
+def build_booking_pdf(booking):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.add_font("ArialUnicode", "", "C:/Windows/Fonts/arial.ttf")
+    pdf.add_font("ArialUnicode", "B", "C:/Windows/Fonts/arialbd.ttf")
+
+    pdf.set_font("ArialUnicode", "B", 15)
+    pdf.cell(0, 9, "AURELIA HOTEL & SUITES", ln=True, align="C")
+    pdf.set_font("ArialUnicode", "B", 13)
+    pdf.cell(0, 9, "PHIẾU ĐẶT PHÒNG (MÃ #" + str(booking.id) + ")", ln=True, align="C")
+    pdf.ln(3)
+
+    room_names = ", ".join([str(d.room.room_number) + " (" + str(d.room.room_type.name) + ")" for d in booking.details])
+    pdf.set_font("ArialUnicode", "", 11)
+    pdf.cell(0, 7, "Phòng đặt: " + room_names, ln=True)
+    pdf.cell(95, 7, "Ngày nhận phòng: " + booking.expected_checkin.strftime("%d/%m/%Y"), ln=False)
+    pdf.cell(95, 7, "Ngày trả phòng: " + booking.expected_checkout.strftime("%d/%m/%Y"), ln=True)
+    pdf.ln(3)
+
+    pdf.set_font("ArialUnicode", "B", 10)
+    pdf.cell(12, 8, "STT", border=1, align="C")
+    pdf.cell(48, 8, "Khách hàng", border=1, align="C")
+    pdf.cell(30, 8, "Loại khách", border=1, align="C")
+    pdf.cell(35, 8, "CMND / CCCD", border=1, align="C")
+    pdf.cell(65, 8, "Địa chỉ", border=1, align="C")
+    pdf.ln()
+
+    cus = booking.customer
+    u = cus.user
+    pdf.set_font("ArialUnicode", "", 10)
+    pdf.cell(12, 8, "1", border=1, align="C")
+    pdf.cell(48, 8, str(u.full_name), border=1)
+    pdf.cell(30, 8, str(cus.customer_type.name), border=1, align="C")
+    pdf.cell(35, 8, str(u.identity_card), border=1, align="C")
+    pdf.cell(65, 8, str(u.address or ""), border=1)
+    pdf.ln(5)
+
+    pdf.set_font("ArialUnicode", "B", 11)
+    pdf.cell(0, 7, "Tổng tiền phòng dự kiến: {:,.0f} VNĐ".format(booking.total_estimated), ln=True)
+    pdf.cell(0, 7, "Tiền cọc đã thanh toán (20%): {:,.0f} VNĐ".format(booking.deposit_amount), ln=True)
+    pdf.ln(4)
+
+    pdf.set_font("ArialUnicode", "", 10)
+    pdf.multi_cell(0, 6, "Lưu ý: Thời gian nhận phòng không quá 28 ngày kể từ thời điểm đặt phòng. Quý khách vui lòng xuất trình phiếu này kèm CMND/CCCD tại quầy Lễ tân khi nhận phòng.")
+
+    return bytes(pdf.output())
 
 
 class NotificationService:
@@ -17,27 +67,23 @@ class NotificationService:
 
         try:
             subject = "[Aurelia Hotel & Suites] Xác nhận đặt phòng #" + str(booking.id)
-            checkin = booking.expected_checkin.strftime('%d/%m/%Y')
-            checkout = booking.expected_checkout.strftime('%d/%m/%Y')
-            total = "{:,.0f}".format(booking.total_estimated)
-            deposit = "{:,.0f}".format(booking.deposit_amount)
+            html_intro = (
+                    "<p>Kính chào Quý khách <strong>" + str(customer_name) + "</strong>,</p>"
+                                                                             "<p>Cảm ơn Quý khách đã tin tưởng và lựa chọn <strong>Aurelia Hotel &amp; Suites</strong> cho kỳ nghỉ sắp tới. "
+                                                                             "Đơn đặt phòng <strong>#" + str(
+                booking.id) + "</strong> của Quý khách đã được xác nhận thành công.</p>"
+                              "<p>Dưới đây là tệp PDF thông tin chi tiết Phiếu đặt phòng của Quý khách (vui lòng nhấn mở tệp đính kèm bên dưới để xem và lưu trữ):</p>"
+                              "<p>Trân trọng,<br><strong>Bộ phận Lễ tân — Aurelia Hotel &amp; Suites</strong></p>"
+            )
 
-            body = "Xin chào " + str(customer_name) + ",\n\n"
-            body += "Đơn đặt phòng #" + str(
-                booking.id) + " của bạn tại Aurelia Hotel & Suites đã được xác nhận thành công.\n"
-            body += "- Ngày nhận phòng dự kiến: " + checkin + "\n"
-            body += "- Ngày trả phòng dự kiến: " + checkout + "\n"
-            body += "- Tổng tiền dự kiến: " + total + " VNĐ\n"
-            body += "- Tiền cọc 20% đã thanh toán: " + deposit + " VNĐ\n\n"
-            body += "Lưu ý: Phiếu đặt phòng có hiệu lực giữ phòng tối đa 28 ngày kể từ ngày đặt.\n"
-            body += "Trân trọng cảm ơn bạn đã lựa chọn Aurelia Hotel & Suites!"
+            msg = Message(subject=subject, recipients=[to_email], html=html_intro)
+            pdf_bytes = build_booking_pdf(booking)
+            msg.attach(
+                filename="Phieu_Dat_Phong_" + str(booking.id) + ".pdf",
+                content_type="application/pdf",
+                data=pdf_bytes
+            )
 
-            # Nội dung HTML là phiếu đặt phòng theo mẫu của đề (người đặt, phòng, ngày, bảng khách)
-            from eapp.models import Regulation
-            html = render_template('email/booking_slip.html', booking=booking,
-                                   max_hold_days=Regulation.query.first().max_hold_days)
-
-            msg = Message(subject=subject, recipients=[to_email], body=body, html=html)
             mail.send(msg)
             return True
         except Exception as ex:

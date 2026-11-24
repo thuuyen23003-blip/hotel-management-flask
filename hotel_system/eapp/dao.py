@@ -21,32 +21,12 @@ def load_room_types():
 
 
 def get_busy_room_ids(checkin_date, checkout_date):
-    busy_booking_rooms = (
-        db.session.query(BookingDetail.room_id)
-        .join(Booking, Booking.id == BookingDetail.booking_id)
-        .filter(
-            Booking.status.in_([BookingStatus.PENDING, BookingStatus.CONFIRMED]),
-            Booking.expected_checkin < checkout_date,
-            Booking.expected_checkout > checkin_date
-        )
-        .all()
-    )
-    busy_rental_rooms = (
-        db.session.query(RentalDetail.room_id)
-        .join(Rental, Rental.id == RentalDetail.rental_id)
-        .filter(
-            Rental.status == RentalStatus.ACTIVE,
-            Rental.checkin_date < checkout_date,
-            Rental.expected_checkout > checkin_date
-        )
-        .all()
-    )
-    busy_ids = set()
-    for row in busy_booking_rooms:
-        busy_ids.add(row[0])
-    for row in busy_rental_rooms:
-        busy_ids.add(row[0])
-    return list(busy_ids)
+    all_rooms = Room.query.all()
+    busy_ids = []
+    for r in all_rooms:
+        if not is_room_free(r.id, checkin_date, checkout_date):
+            busy_ids.append(r.id)
+    return busy_ids
 
 
 def load_rooms(kw=None, room_type_id=None, checkin_date=None, checkout_date=None, page=1):

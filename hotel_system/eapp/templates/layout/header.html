@@ -1,26 +1,29 @@
-<nav class="navbar navbar-dark bg-dark shadow-sm">
-    <div class="container">
-        <div class="d-flex align-items-center">
-            <button class="btn btn-outline-light me-3" type="button"
-                    data-bs-toggle="offcanvas" data-bs-target="#leftSidebar">
+<nav class="navbar navbar-dark bg-dark shadow-sm py-2">
+    <div class="container d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2">
+            <button class="btn btn-outline-light btn-sm px-2 text-nowrap" type="button"
+                    data-bs-toggle="offcanvas" data-bs-target="#mainSidebarMenu">
                 &#9776; Menu
             </button>
-            <a class="navbar-brand fw-bold mb-0" href="/">Aurelia Hotel &amp; Suites</a>
+            <a class="navbar-brand fw-bold mb-0 fs-6 text-nowrap" href="/">
+                Aurelia Hotel &amp; Suites
+            </a>
         </div>
 
-        <div class="d-flex align-items-center">
-            <a href="/booking-list" class="btn btn-warning btn-sm fw-semibold me-2">
-                Phòng đang chọn (<span
-                    class="booking-counter">{{ session.get('selected_rooms')|length if session.get('selected_rooms') else 0 }}</span>)
+        <div class="d-flex align-items-center gap-2">
+            <a href="/booking-list" class="btn btn-warning btn-sm fw-semibold px-2 text-nowrap">
+                Phòng đang chọn (<span id="cartCounter">{{ selected_summary.total_rooms }}</span>)
             </a>
             {% if current_user.is_authenticated %}
-                <span class="text-light small d-none d-md-inline">Xin chào, {{ current_user.user.full_name }}</span>
+                <span class="text-light small d-none d-md-inline mx-1">{{ current_user.user.full_name }}</span>
+                <a href="/logout" class="btn btn-outline-light btn-sm px-2 text-nowrap">Đăng xuất</a>
             {% else %}
-                <a href="/login" class="btn btn-outline-light btn-sm">Đăng nhập</a>
+                <a href="/login" class="btn btn-outline-light btn-sm px-2 text-nowrap">Đăng nhập</a>
             {% endif %}
         </div>
     </div>
 </nav>
+
 
 <div class="offcanvas offcanvas-start bg-dark text-white" tabindex="-1" id="leftSidebar" style="width: 280px;">
     <div class="offcanvas-header border-bottom border-secondary">

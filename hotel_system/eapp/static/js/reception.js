@@ -90,10 +90,21 @@ function checkOneRow(row, isFirstRequired) {
         return false;
     }
 
-    if (!isDigitsOnly(cccd) || (cccd.length !== 9 && cccd.length !== 12)) {
-        showRowError(row, 'Dòng số ' + stt + ': Số CMND/CCCD phải gồm đúng 9 hoặc 12 chữ số!');
-        return false;
+    let typeSelect = row.getElementsByTagName('select').item(0);
+    let typeText = typeSelect.options.item(typeSelect.selectedIndex).text.toLowerCase();
+
+    if (typeText.indexOf('nước ngoài') !== -1) {
+        if (cccd.length < 6 || cccd.length > 12 || cccd.indexOf(' ') !== -1) {
+            showRowError(row, 'Dòng số ' + stt + ': Số Hộ chiếu khách nước ngoài phải từ 6 đến 12 ký tự (không có khoảng trắng)!');
+            return false;
+        }
+    } else {
+        if (!isDigitsOnly(cccd) || cccd.length !== 12) {
+            showRowError(row, 'Dòng số ' + stt + ': Số CCCD khách nội địa phải gồm đúng 12 chữ số!');
+            return false;
+        }
     }
+
 
     let tbody = row.parentElement;
     let allRows = tbody.getElementsByTagName('tr');

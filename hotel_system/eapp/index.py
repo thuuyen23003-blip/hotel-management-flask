@@ -6,7 +6,7 @@ from flask_login import login_user, logout_user, login_required, current_user
 from eapp import app, db, login, dao
 from eapp.models import (
     AccountRole, Booking, Rental,
-    Room, RoomStatus, BookingStatus, RentalStatus, Invoice, Regulation, RoomType
+    Room, RoomStatus, BookingStatus, RentalStatus, Invoice, Regulation, RoomType, CustomerType
 )
 from eapp.utils import summarize_selected_rooms, validate_max_hold_days
 from eapp.services import MoMoService
@@ -19,6 +19,17 @@ def load_user(account_id):
 
 
 # 1. Home & Room Search
+
+@app.context_processor
+def inject_common_data():
+    selected_rooms = session.get('selected_rooms', {})
+    return {
+        'selected_summary': {
+            'total_rooms': len(selected_rooms)
+        }
+    }
+
+
 @app.route('/')
 def index():
     kw = request.args.get('kw', '').strip()
@@ -316,8 +327,15 @@ def get_guests_from_form():
             raise ValueError("Dòng số " + str(i + 1) + ": Vui lòng nhập họ tên khách hàng!")
         if not name.replace(" ", "").isalpha() or len(name) < 2:
             raise ValueError("Dòng số " + str(i + 1) + ": Họ tên khách hàng chỉ được chứa chữ cái!")
-        if not cccd.isdigit() or (len(cccd) != 9 and len(cccd) != 12):
-            raise ValueError("Dòng số " + str(i + 1) + ": Số CMND/CCCD phải gồm 9 hoặc 12 chữ số!")
+        ct = CustomerType.query.get(int(types[i]))
+        is_foreign = ct and ('nước ngoài' in ct.name.lower())
+        if is_foreign:
+            if not cccd.isalnum() or len(cccd) < 6 or len(cccd) > 12:
+                raise ValueError(
+                    "Dòng số " + str(i + 1) + ": Số Hộ chiếu khách nước ngoài phải từ 6 đến 12 ký tự chữ hoặc số!")
+        else:
+            if not cccd.isdigit() or len(cccd) != 12:
+                raise ValueError("Dòng số " + str(i + 1) + ": Số CCCD khách nội địa phải gồm đúng 12 chữ số!")
 
         guests.append({
             'full_name': name,

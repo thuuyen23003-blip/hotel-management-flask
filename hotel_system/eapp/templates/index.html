@@ -12,51 +12,64 @@
     {% endif %}
 
     <!-- Thanh tìm kiếm theo Ngày nhận - Ngày trả & Số khách (Tham khảo Booking/Agoda) -->
-        <form method="get" action="/" class="card shadow-sm p-3 mb-4 border-0">
+            <form method="get" action="/" class="card shadow-sm p-3 mb-4 border-0">
         <div class="row g-2 align-items-end">
-            <div class="col-md-2">
-                <label class="form-label fw-semibold small mb-1">Số phòng</label>
-                <input type="text" name="kw" class="form-control" value="{{ kw }}" placeholder="VD: 101, 202...">
-            </div>
-            <div class="col-md-3">
+            <div class="col-md-4">
                 <label class="form-label fw-semibold small mb-1">Hạng phòng</label>
                 <select name="room_type_id" class="form-select">
                     <option value="">-- Tất cả hạng phòng --</option>
                     {% for rt in room_types %}
                     <option value="{{ rt.id }}" {% if room_type_id|string == rt.id|string %}selected{% endif %}>
-                        {{ rt.name }} ({{ "{:,.0f}".format(rt.base_price) }}đ)
+                        {{ rt.name }} ({{ "{:,.0f}".format(rt.base_price) }}đ / đêm)
                     </option>
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label class="form-label fw-semibold small mb-1">Ngày nhận phòng <span class="text-danger">*</span></label>
                 <input type="date" id="searchCheckin" name="checkin" class="form-control"
                        value="{{ checkin }}" min="{{ today_str }}" required>
             </div>
-            <div class="col-md-2">
+            <div class="col-md-3">
                 <label class="form-label fw-semibold small mb-1">Ngày trả phòng <span class="text-danger">*</span></label>
                 <input type="date" id="searchCheckout" name="checkout" class="form-control"
                        value="{{ checkout }}" min="{{ today_str }}" required>
             </div>
-            <div class="col-md-1">
+            <div class="col-md-2">
                 <label class="form-label fw-semibold small mb-1">Số khách <span class="text-danger">*</span></label>
                 <input type="number" id="searchGuests" name="guests" class="form-control"
-                       value="{{ guests }}" min="1" max="30" required>
+                       value="{{ guests }}" min="1" max="30" oninput="updateGuestHint()" required>
             </div>
-            <div class="col-md-2">
+        </div>
+
+        <div class="row g-2 align-items-center mt-2">
+            <div class="col-md-8">
+                <small class="text-muted d-block">
+                    <span class="text-danger fw-semibold">* Bắt buộc nhập</span> | Quy định: Tối đa <strong>{{ max_guests }} khách / phòng</strong> (phụ thu từ khách thứ 3).
+                </small>
+                <small id="guestHintText" class="text-primary fw-semibold d-block mt-1">
+                    Gợi ý: Với {{ guests }} khách, bạn cần đặt tối thiểu {{ ((guests - 1) // max_guests) + 1 }} phòng.
+                </small>
+            </div>
+            <div class="col-md-4">
                 <button type="submit" class="btn btn-primary w-100 fw-semibold">Tìm phòng trống</button>
             </div>
         </div>
-        <div class="mt-2 d-flex justify-content-between align-items-center">
-            <small class="text-muted">
-                <span class="text-danger fw-semibold">* Bắt buộc nhập</span> | Quy định: Tối đa <strong>{{ max_guests }} khách / phòng</strong> (phụ thu từ khách thứ 3).
-            </small>
-            <small class="text-primary fw-semibold">
-                Gợi ý: Với {{ guests }} khách, bạn cần đặt tối thiểu {{ ((guests - 1) // max_guests) + 1 }} phòng.
-            </small>
-        </div>
     </form>
+
+    <script>
+        function updateGuestHint() {
+            let g = parseInt(document.getElementById('searchGuests').value);
+            let maxG = {{ max_guests }};
+            if (isNaN(g) || g < 1) {
+                g = 1;
+            }
+            let minRooms = Math.floor((g - 1) / maxG) + 1;
+            document.getElementById('guestHintText').innerText =
+                'Gợi ý: Với ' + g + ' khách, bạn cần đặt tối thiểu ' + minRooms + ' phòng.';
+        }
+    </script>
+
 
     <!-- Danh sách phòng trống khả dụng trong khoảng ngày đã chọn -->
     <div class="row">
@@ -101,7 +114,7 @@
         <ul class="pagination justify-content-center">
             {% for p in range(1, pages + 1) %}
             <li class="page-item {% if p == current_page %}active{% endif %}">
-                <a class="page-link" href="/?page={{ p }}&kw={{ kw }}&room_type_id={{ room_type_id }}&checkin={{ checkin }}&checkout={{ checkout }}&guests={{ guests }}">
+                <a class="page-link" href="/?page={{ p }}&room_type_id={{ room_type_id }}&checkin={{ checkin }}&checkout={{ checkout }}&guests={{ guests }}">
                     {{ p }}
                 </a>
             </li>
