@@ -394,7 +394,8 @@ def reception_checkin():
         return redirect('/rental-slip/' + str(rental.id) + '?new=1')
     except Exception as ex:
         db.session.rollback()
-        return redirect('/reception?err=' + str(ex))
+        tab_name = 'walkin_checkin' if checkin_type == 'walkin' else 'booked_checkin'
+        return redirect('/reception?tab=' + tab_name + '&err=' + str(ex))
 
 
 # Nhân viên lập phiếu đặt phòng tại quầy
@@ -420,7 +421,7 @@ def reception_booking():
         return redirect('/booking-slip/' + str(booking.id) + '?new=1')
     except Exception as ex:
         db.session.rollback()
-        return redirect('/reception?err=' + str(ex))
+        return redirect('/reception?tab=counter_booking&err=' + str(ex))
 
 
 @app.route('/reception/clean-room/<int:room_id>', methods=['POST'])

@@ -95,6 +95,19 @@ function checkOneRow(row, isFirstRequired) {
         return false;
     }
 
+    let tbody = row.parentElement;
+    let allRows = tbody.getElementsByTagName('tr');
+    for (let i = 0; i < allRows.length; i++) {
+        if (allRows.item(i).hasAttribute('data-row') && allRows.item(i) !== row) {
+            let otherCccd = allRows.item(i).getElementsByTagName('input').item(1).value.trim();
+            if (otherCccd !== '' && otherCccd === cccd) {
+                showRowError(row, 'Dòng số ' + stt + ': Số CMND/CCCD này bị trùng với một khách khác trong danh sách!');
+                return false;
+            }
+        }
+    }
+
+
     showRowError(row, '');
     return true;
 }
@@ -177,38 +190,43 @@ function updateGuestRowNumbers(tbody) {
     let rows = tbody.getElementsByTagName('tr');
     let count = 0;
     for (let i = 0; i < rows.length; i++) {
-        if (rows[i].hasAttribute('data-row')) {
+        if (rows.item(i).hasAttribute('data-row')) {
             count++;
-            rows[i].setAttribute('data-row', count);
-            let sttCell = rows[i].getElementsByClassName('stt-cell');
+            rows.item(i).setAttribute('data-row', count);
+            let sttCell = rows.item(i).getElementsByClassName('stt-cell').item(0);
+            let removeBtn = rows.item(i).getElementsByTagName('button').item(0);
             let form = tbody.closest('form');
             let isRep = (form.getAttribute('data-require-one') === 'true');
+
             if (isRep && count === 1) {
                 sttCell.innerHTML = '1 <span class="text-danger">*</span>';
             } else {
                 sttCell.innerText = count;
+            }
+
+            if (count === 1) {
+                removeBtn.classList.add('d-none');
+            } else {
+                removeBtn.classList.remove('d-none');
             }
         }
     }
 }
 
 function addGuestRow(btn) {
-    let container = btn.parentElement.parentElement;
-    let tbody = container.getElementsByClassName('guest-tbody');
+    let box = btn.closest('.guest-table-box');
+    let tbody = box.getElementsByClassName('guest-tbody').item(0);
     let rows = tbody.getElementsByTagName('tr');
 
-    let firstDataRow = rows;
-    let firstErrRow = rows;
-
-    let newDataRow = firstDataRow.cloneNode(true);
-    let newErrRow = firstErrRow.cloneNode(true);
+    let newDataRow = rows.item(0).cloneNode(true);
+    let newErrRow = rows.item(1).cloneNode(true);
 
     let inputs = newDataRow.getElementsByTagName('input');
     for (let i = 0; i < inputs.length; i++) {
-        inputs[i].value = '';
+        inputs.item(i).value = '';
     }
     newErrRow.style.display = 'none';
-    newErrRow.getElementsByTagName('small').innerText = '';
+    newErrRow.getElementsByTagName('small').item(0).innerText = '';
 
     tbody.appendChild(newDataRow);
     tbody.appendChild(newErrRow);
@@ -219,23 +237,6 @@ function removeGuestRow(btn) {
     let dataRow = btn.parentElement.parentElement;
     let errRow = dataRow.nextElementSibling;
     let tbody = dataRow.parentElement;
-
-    let totalDataRows = 0;
-    let rows = tbody.getElementsByTagName('tr');
-    for (let i = 0; i < rows.length; i++) {
-        if (rows[i].hasAttribute('data-row')) {
-            totalDataRows++;
-        }
-    }
-
-    if (totalDataRows <= 1) {
-        let inputs = dataRow.getElementsByTagName('input');
-        for (let i = 0; i < inputs.length; i++) {
-            inputs[i].value = '';
-        }
-        showRowError(dataRow, '');
-        return;
-    }
 
     tbody.removeChild(errRow);
     tbody.removeChild(dataRow);
