@@ -7,113 +7,38 @@ import requests
 from datetime import datetime
 from flask import render_template
 from flask_mail import Message
-from eapp import app, mail
+from eapp import app, mail, dao
 from email.mime.application import MIMEApplication
-from fpdf import FPDF
-
-
-def build_booking_pdf(booking):
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.add_font("ArialUnicode", "", "C:/Windows/Fonts/arial.ttf")
-    pdf.add_font("ArialUnicode", "B", "C:/Windows/Fonts/arialbd.ttf")
-
-    # Dòng tiêu đề đầu trang giống bản in web
-    pdf.set_font("ArialUnicode", "B", 13)
-    pdf.cell(110, 7, "AURELIA HOTEL & SUITES", ln=False)
-    pdf.set_font("ArialUnicode", "", 10)
-    created_dt = getattr(booking, 'booking_date', None) or getattr(booking, 'created_date', None) or datetime.now()
-    created_str = created_dt.strftime("%d/%m/%Y %H:%M")
-    pdf.cell(80, 7, "Ngày lập: " + created_str, ln=True, align="R")
-
-    pdf.cell(0, 6, "Mã phiếu đặt: " + str(booking.id), ln=True)
-    pdf.ln(4)
-
-    pdf.set_font("ArialUnicode", "B", 16)
-    pdf.cell(0, 10, "PHIẾU ĐẶT PHÒNG", ln=True, align="C")
-    pdf.ln(3)
-
-    # Khung thông tin 2 cột giống bản in web
-    room_names = ", ".join([str(d.room.room_number) for d in booking.details])
-    cus = booking.customer
-    u = cus.user
-
-    pdf.set_font("ArialUnicode", "", 11)
-    pdf.cell(95, 9, "Họ tên người đặt: " + str(u.full_name), border=1)
-    pdf.cell(95, 9, "Phòng đặt: " + room_names, border=1, ln=True)
-    pdf.cell(95, 9, "Ngày nhận phòng: " + booking.expected_checkin.strftime("%d/%m/%Y"), border=1)
-    pdf.cell(95, 9, "Ngày trả phòng: " + booking.expected_checkout.strftime("%d/%m/%Y"), border=1, ln=True)
-    pdf.ln(6)
-
-    # Bảng danh sách khách chuẩn mẫu BM1
-    pdf.set_font("ArialUnicode", "B", 10)
-    pdf.cell(14, 9, "STT", border=1, align="C")
-    pdf.cell(52, 9, "Khách hàng", border=1, align="C")
-    pdf.cell(30, 9, "Loại khách", border=1, align="C")
-    pdf.cell(38, 9, "CMND / CCCD", border=1, align="C")
-    pdf.cell(56, 9, "Địa chỉ", border=1, align="C")
-    pdf.ln()
-
-    pdf.set_font("ArialUnicode", "", 10)
-    pdf.cell(14, 9, "1", border=1, align="C")
-    pdf.cell(52, 9, str(u.full_name), border=1)
-    pdf.cell(30, 9, str(cus.customer_type.name), border=1, align="C")
-    pdf.cell(38, 9, str(u.identity_card), border=1, align="C")
-    pdf.cell(56, 9, str(u.address or ""), border=1)
-    pdf.ln(14)
-
-    # Phần tổng tiền và quy định
-    pdf.set_font("ArialUnicode", "B", 11)
-    pdf.cell(0, 8, "Tổng tiền dự kiến: {:,.0f} VNĐ".format(booking.total_estimated), ln=True)
-    pdf.cell(0, 8, "Tiền cọc đã đóng (20%): {:,.0f} VNĐ".format(booking.deposit_amount), ln=True)
-    pdf.ln(3)
-
-    pdf.set_font("ArialUnicode", "", 10)
-    pdf.multi_cell(0, 6, "Quy định: Thời điểm nhận phòng không quá 28 ngày kể từ thời điểm đặt phòng. Quý khách vui lòng xuất trình phiếu này kèm CMND/CCCD tại quầy Lễ tân khi nhận phòng.")
-    pdf.ln(10)
-
-    # 2 cột chữ ký giống hệt bản in web
-    pdf.set_font("ArialUnicode", "B", 11)
-    pdf.cell(95, 7, "Người đặt phòng", align="C")
-    pdf.cell(95, 7, "Khách sạn xác nhận", align="C", ln=True)
-
-    pdf.set_font("ArialUnicode", "", 10)
-    pdf.cell(95, 6, "(Ký và ghi rõ họ tên)", align="C")
-    pdf.cell(95, 6, "(Ký và ghi rõ họ tên)", align="C", ln=True)
-    pdf.ln(18)
-
-    pdf.set_font("ArialUnicode", "B", 11)
-    pdf.cell(95, 7, str(u.full_name), align="C")
-    pdf.cell(95, 7, "Aurelia Hotel & Suites", align="C", ln=True)
-
-    return bytes(pdf.output())
-
+from datetime import datetime
+from eapp.models import Regulation
 
 class NotificationService:
-    # Send booking confirmation email to customer
     def send_email_confirmation(self, to_email, booking, customer_name="Quý khách"):
         if not to_email:
             return False
 
         try:
             subject = "[Aurelia Hotel & Suites] Xác nhận đặt phòng #" + str(booking.id)
-            html_intro = (
-                    "<p>Kính chào Quý khách <strong>" + str(customer_name) + "</strong>,</p>"
-                                                                             "<p>Cảm ơn Quý khách đã tin tưởng và lựa chọn <strong>Aurelia Hotel &amp; Suites</strong> cho kỳ nghỉ sắp tới. "
-                                                                             "Đơn đặt phòng <strong>#" + str(
-                booking.id) + "</strong> của Quý khách đã được xác nhận thành công.</p>"
-                              "<p>Dưới đây là tệp PDF thông tin chi tiết Phiếu đặt phòng của Quý khách (vui lòng nhấn mở tệp đính kèm bên dưới để xem và lưu trữ):</p>"
-                              "<p>Trân trọng,<br><strong>Bộ phận Lễ tân — Aurelia Hotel &amp; Suites</strong></p>"
-            )
+            checkin = booking.expected_checkin.strftime('%d/%m/%Y')
+            checkout = booking.expected_checkout.strftime('%d/%m/%Y')
+            total = "{:,.0f}".format(booking.total_estimated)
+            deposit = "{:,.0f}".format(booking.deposit_amount)
 
-            msg = Message(subject=subject, recipients=[to_email], html=html_intro)
-            pdf_bytes = build_booking_pdf(booking)
-            msg.attach(
-                filename="Phieu_Dat_Phong_" + str(booking.id) + ".pdf",
-                content_type="application/pdf",
-                data=pdf_bytes
-            )
+            body = "Xin chào " + str(customer_name) + ",\n\n"
+            body += "Đơn đặt phòng #" + str(booking.id) + " của bạn tại Aurelia Hotel & Suites đã được xác nhận.\n"
+            body += "- Ngày nhận phòng: " + checkin + "\n"
+            body += "- Ngày trả phòng: " + checkout + "\n"
+            body += "- Tổng tiền dự kiến: " + total + " VNĐ\n"
+            body += "- Tiền cọc (20%): " + deposit + " VNĐ\n"
 
+            reg = dao.get_current_regulation()
+            created_str = datetime.now().strftime('%d/%m/%Y %H:%M')
+            html = render_template('email/booking_slip.html',
+                                   booking=booking,
+                                   max_hold_days=reg.max_hold_days,
+                                   created_str=created_str)
+
+            msg = Message(subject=subject, recipients=[to_email], body=body, html=html)
             mail.send(msg)
             return True
         except Exception as ex:

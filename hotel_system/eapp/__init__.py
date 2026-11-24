@@ -22,10 +22,6 @@ app.config['MAIL_USERNAME'] = os.environ.get('MAIL_USERNAME')
 app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
 app.config['MAIL_DEFAULT_SENDER'] = ('Aurelia Hotel & Suites', os.environ.get('MAIL_USERNAME'))
 
-# Telegram Bot Configuration
-app.config['TELEGRAM_BOT_TOKEN'] = os.environ.get('TELEGRAM_BOT_TOKEN')
-app.config['TELEGRAM_CHAT_ID'] = os.environ.get('TELEGRAM_CHAT_ID')
-
 # MoMo Sandbox Configuration
 app.config['MOMO_PARTNER_CODE'] = os.environ.get('MOMO_PARTNER_CODE')
 app.config['MOMO_ACCESS_KEY'] = os.environ.get('MOMO_ACCESS_KEY')

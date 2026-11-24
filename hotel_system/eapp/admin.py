@@ -9,10 +9,17 @@ from eapp.models import AccountRole, RoomType, Room, Regulation, CustomerType
 
 
 class MyAdminIndex(AdminIndexView):
+    def is_accessible(self):
+        return current_user.is_authenticated and current_user.role == AccountRole.MANAGER
+
+    def inaccessible_callback(self, name, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect('/login?next=' + request.url)
+        return redirect('/')
+
     @expose('/')
     def index(self):
         return self.render('admin/index.html', stats=dao.stats_rooms_by_type())
-
 
 admin = Admin(app=app, name='Aurelia Hotel Admin', index_view=MyAdminIndex())
 
@@ -46,6 +53,7 @@ class RoomView(ManagerAuthenticated):
     column_filters = ['status', 'room_type_id']
     edit_modal = True
     can_view_details = True
+    can_export = True
 
 
 class RegulationView(ManagerAuthenticated):
