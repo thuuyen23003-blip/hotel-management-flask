@@ -1,18 +1,25 @@
+<div class="d-flex justify-content-between align-items-center mb-1">
+    <small class="text-danger fw-semibold">
+        * Thông tin bắt buộc nhập{% if is_first_representative %} (Người đầu tiên là người đứng tên đại diện){% endif %}
+    </small>
+</div>
 <div class="table-responsive">
     <table class="table table-bordered table-sm align-middle mb-2">
         <thead class="table-light text-center">
-        <tr>
-            <th style="width: 50px;">STT</th>
-            <th>Khách hàng</th>
-            <th style="width: 140px;">Loại khách</th>
-            <th style="width: 160px;">CMND / CCCD</th>
-            <th>Địa chỉ</th>
-        </tr>
+            <tr>
+                <th style="width: 50px;">STT</th>
+                <th>Khách hàng <span class="text-danger">*</span></th>
+                <th style="width: 140px;">Loại khách <span class="text-danger">*</span></th>
+                <th style="width: 160px;">CMND / CCCD <span class="text-danger">*</span></th>
+                <th>Địa chỉ</th>
+            </tr>
         </thead>
         <tbody>
-        {% for i in range(1, row_count + 1) %}
+            {% for i in range(1, row_count + 1) %}
             <tr data-row="{{ i }}">
-                <td class="text-center fw-bold">{{ i }}</td>
+                <td class="text-center fw-bold">
+                    {{ i }}{% if is_first_representative and i == 1 %} <span class="text-danger">*</span>{% endif %}
+                </td>
                 <td>
                     <input type="text" class="form-control form-control-sm"
                            name="guest_name" placeholder="Ví dụ: Nguyễn Văn A"
@@ -21,7 +28,7 @@
                 <td>
                     <select class="form-select form-select-sm" name="guest_type">
                         {% for ct in customer_types %}
-                            <option value="{{ ct.id }}">{{ ct.name }}</option>
+                        <option value="{{ ct.id }}">{{ ct.name }}</option>
                         {% endfor %}
                     </select>
                 </td>
@@ -41,7 +48,7 @@
                     <small class="text-danger"></small>
                 </td>
             </tr>
-        {% endfor %}
+            {% endfor %}
         </tbody>
     </table>
 </div>

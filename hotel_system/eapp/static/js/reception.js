@@ -120,3 +120,55 @@ function validateGuestForm(form) {
     }
     return isValid;
 }
+
+function filterPendingBookings() {
+    let keyword = document.getElementById('bookingSearchInput').value.toLowerCase().trim();
+    let rows = document.getElementsByClassName('booking-item-row');
+    for (let i = 0; i < rows.length; i++) {
+        let rowText = rows[i].innerText.toLowerCase();
+        if (keyword === '' || rowText.indexOf(keyword) !== -1) {
+            rows[i].style.display = '';
+        } else {
+            rows[i].style.display = 'none';
+        }
+    }
+}
+
+function selectBookingForCheckin(btn, bookingId, customerName, roomCount) {
+    document.getElementById('selectedBookingId').value = bookingId;
+    document.getElementById('selectedBookingBanner').classList.remove('d-none');
+    document.getElementById('bookingSelectError').classList.add('d-none');
+    document.getElementById('selectedBookingText').innerText =
+        'Phiếu #' + bookingId + ' - Khách: ' + customerName + ' (' + roomCount + ' phòng, tối đa ' + (roomCount * 3) + ' khách)';
+
+    let allRows = document.getElementsByClassName('booking-item-row');
+    for (let i = 0; i < allRows.length; i++) {
+        allRows[i].classList.remove('table-primary');
+    }
+    btn.parentElement.parentElement.classList.add('table-primary');
+
+    // Tự động mở đúng số dòng nhập khách lưu trú đi kèm theo số phòng đặt (số phòng * 3 - 1 người đại diện)
+    let maxExtraGuests = roomCount * 3 - 1;
+    let wrapper = document.getElementById('checkinGuestTableWrapper');
+    let guestRows = wrapper.getElementsByTagName('tr');
+    for (let i = 0; i < guestRows.length; i++) {
+        if (guestRows[i].hasAttribute('data-row')) {
+            let stt = parseInt(guestRows[i].getAttribute('data-row'));
+            if (stt <= maxExtraGuests) {
+                guestRows[i].style.display = '';
+            } else {
+                guestRows[i].style.display = 'none';
+                guestRows[i].nextElementSibling.style.display = 'none';
+            }
+        }
+    }
+}
+
+function validateCheckinBookingForm(form) {
+    let bookingId = document.getElementById('selectedBookingId').value;
+    if (!bookingId) {
+        document.getElementById('bookingSelectError').classList.remove('d-none');
+        return false;
+    }
+    return validateGuestForm(form);
+}

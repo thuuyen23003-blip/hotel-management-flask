@@ -1,12 +1,12 @@
 import uuid
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from flask import render_template, request, redirect, session, jsonify, url_for
 from flask_login import login_user, logout_user, login_required, current_user
 from eapp import app, db, login, dao
 from eapp.models import (
     AccountRole, Booking, Rental,
-    Room, RoomStatus, BookingStatus, RentalStatus, Invoice
+    Room, RoomStatus, BookingStatus, RentalStatus, Invoice, Regulation, RoomType
 )
 from eapp.utils import summarize_selected_rooms, validate_max_hold_days
 from eapp.services import MoMoService
@@ -21,20 +21,55 @@ def load_user(account_id):
 # 1. Home & Room Search
 @app.route('/')
 def index():
-    room_type_id = request.args.get('room_type_id')
-    status = request.args.get('status')
-    kw = request.args.get('kw')
+    kw = request.args.get('kw', '').strip()
+    room_type_id = request.args.get('room_type_id', '')
+    guests = int(request.args.get('guests', 2))
     page = int(request.args.get('page', 1))
 
-    room_types = dao.load_room_types()
-    rooms = dao.load_rooms(room_type_id=room_type_id, status=status, kw=kw, page=page)
-    total = dao.count_rooms(room_type_id=room_type_id, status=status, kw=kw)
+    today = datetime.now().date()
+    tomorrow = today + timedelta(days=1)
 
-    return render_template('index.html',
-                           room_types=room_types,
-                           rooms=rooms,
-                           pages=math.ceil(total / app.config['PAGE_SIZE']),
-                           current_page=page)
+    checkin_str = request.args.get('checkin', today.strftime('%Y-%m-%d'))
+    checkout_str = request.args.get('checkout', tomorrow.strftime('%Y-%m-%d'))
+
+    err_msg = None
+    try:
+        checkin_dt = datetime.strptime(checkin_str, '%Y-%m-%d')
+        checkout_dt = datetime.strptime(checkout_str, '%Y-%m-%d')
+        if checkout_dt <= checkin_dt:
+            err_msg = "Ngày trả phòng phải sau ngày nhận phòng ít nhất 1 đêm!"
+            checkout_dt = checkin_dt + timedelta(days=1)
+            checkout_str = checkout_dt.strftime('%Y-%m-%d')
+    except ValueError:
+        checkin_dt = datetime.combine(today, datetime.min.time())
+        checkout_dt = datetime.combine(tomorrow, datetime.min.time())
+        checkin_str = today.strftime('%Y-%m-%d')
+        checkout_str = tomorrow.strftime('%Y-%m-%d')
+
+    rooms = dao.load_rooms(kw=kw, room_type_id=room_type_id,
+                           checkin_date=checkin_dt, checkout_date=checkout_dt, page=page)
+    total_rooms = dao.count_rooms(kw=kw, room_type_id=room_type_id,
+                                  checkin_date=checkin_dt, checkout_date=checkout_dt)
+    pages = math.ceil(total_rooms / app.config['PAGE_SIZE'])
+
+    reg = Regulation.query.first()
+    max_guests = reg.max_guests if reg else 3
+
+    return render_template(
+        'index.html',
+        rooms=rooms,
+        room_types=RoomType.query.all(),
+        kw=kw,
+        room_type_id=room_type_id,
+        checkin=checkin_str,
+        checkout=checkout_str,
+        guests=guests,
+        max_guests=max_guests,
+        today_str=today.strftime('%Y-%m-%d'),
+        pages=pages,
+        current_page=page,
+        err_msg=err_msg
+    )
 
 
 # 2. Authentication (Login, Register, Logout)
@@ -329,7 +364,10 @@ def reception_checkin():
     try:
         guests = get_guests_from_form()
         if checkin_type == 'booking':
-            booking_id = int(request.form.get('booking_id'))
+            booking_id_str = request.form.get('booking_id')
+            if not booking_id_str:
+                raise ValueError("Vui lòng chọn một phiếu đặt phòng chờ nhận trước khi lập phiếu thuê!")
+            booking_id = int(booking_id_str)
             room_replacements = {}
             old_room_id = request.form.get('old_room_id')
             new_room_id = request.form.get('new_room_id')
