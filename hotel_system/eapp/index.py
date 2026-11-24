@@ -310,6 +310,7 @@ def momo_booking_return():
 @app.route('/my-bookings')
 @login_required
 def my_bookings():
+    dao.auto_cancel_expired_bookings()
     bookings = dao.get_bookings_by_customer(current_user.user_id)
     return render_template('my_bookings.html', bookings=bookings)
 
@@ -363,13 +364,13 @@ def get_guests_from_form():
     return guests
 
 
-
 @app.route('/reception')
 @login_required
 def reception_dashboard():
     if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
         return redirect('/')
 
+    dao.auto_cancel_expired_bookings()
     kw = request.args.get('kw')  # tìm phiếu đặt theo họ tên khách
 
     all_rooms = Room.query.order_by(Room.room_number).all()
@@ -431,32 +432,6 @@ def reception_checkin():
         db.session.rollback()
         tab_name = 'walkin_checkin' if checkin_type == 'walkin' else 'booked_checkin'
         return redirect('/reception?tab=' + tab_name + '&err=' + str(ex))
-
-
-# Nhân viên lập phiếu đặt phòng tại quầy
-@app.route('/reception/booking', methods=['POST'])
-@login_required
-def reception_booking():
-    if current_user.role not in [AccountRole.STAFF, AccountRole.MANAGER]:
-        return redirect('/')
-
-    try:
-        guests = get_guests_from_form()
-        room_ids = request.form.getlist('room_ids')
-        expected_checkin = datetime.strptime(request.form.get('expected_checkin'), '%Y-%m-%d')
-        expected_checkout = datetime.strptime(request.form.get('expected_checkout'), '%Y-%m-%d')
-
-        booking = dao.create_booking_at_counter(
-            room_ids=room_ids,
-            expected_checkin=expected_checkin,
-            expected_checkout=expected_checkout,
-            guests=guests
-        )
-        # Mở ngay phiếu đặt phòng để in cho khách
-        return redirect('/booking-slip/' + str(booking.id) + '?new=1')
-    except Exception as ex:
-        db.session.rollback()
-        return redirect('/reception?tab=counter_booking&err=' + str(ex))
 
 
 @app.route('/reception/clean-room/<int:room_id>', methods=['POST'])

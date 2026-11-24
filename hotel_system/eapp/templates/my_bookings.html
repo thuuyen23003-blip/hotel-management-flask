@@ -53,6 +53,8 @@
                                 <td>
                                     {% if b.status.name == 'CANCELLED' %}
                                         <span class="badge bg-secondary">Đã hủy</span>
+                                    {% elif b.status.name == 'EXPIRED_CANCELLED' %}
+                                        <span class="badge bg-danger">Hủy do quá hạn</span>
                                     {% elif b.status.name == 'CHECKED_IN' %}
                                         <span class="badge bg-success">Đã nhận phòng</span>
                                     {% else %}
@@ -60,7 +62,7 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if b.status.name not in ['CANCELLED', 'CHECKED_IN'] %}
+                                    {% if b.status.name == 'PENDING_CHECKIN' %}
                                         <form method="post" action="/cancel-booking/{{ b.id }}"
                                               onsubmit="return confirm('Bạn có chắc chắn muốn hủy phiếu đặt phòng #{{ b.id }} không?');">
                                             <button type="submit" class="btn btn-sm btn-outline-danger w-100">
@@ -71,7 +73,6 @@
                                         <span class="text-muted small">Đã khóa thao tác</span>
                                     {% endif %}
                                 </td>
-
                             </tr>
                         {% endfor %}
                         </tbody>

@@ -452,42 +452,6 @@ def create_walkin_rental(staff_user_id, room_ids, expected_checkout, guests):
     return rental
 
 
-# Nhân viên lập phiếu đặt phòng trực tiếp tại quầy (khách đến gặp nhân viên để đặt phòng)
-# guests[0] là người đặt phòng, các dòng sau là khách ở cùng
-def create_booking_at_counter(room_ids, expected_checkin, expected_checkout, guests):
-    reg = get_current_regulation()
-
-    if not room_ids:
-        raise ValueError("Vui lòng chọn ít nhất 1 phòng!")
-    if not guests:
-        raise ValueError("Vui lòng nhập thông tin người đặt phòng!")
-    if expected_checkout.date() <= expected_checkin.date():
-        raise ValueError("Ngày trả phòng phải sau ngày nhận phòng!")
-    if len(guests) > reg.max_guests * len(room_ids):
-        raise ValueError("Số lượng khách vượt quá quy định tối đa " + str(reg.max_guests) + " khách/phòng!")
-
-    selected_rooms = {}
-    for r_id in room_ids:
-        room = Room.query.get(int(r_id))
-        if not room:
-            raise ValueError("Không tìm thấy phòng được chọn!")
-        selected_rooms[str(room.id)] = {
-            'id': room.id,
-            'room_number': room.room_number,
-            'base_price': room.room_type.base_price
-        }
-
-    booker = get_or_create_customer(**guests[0])
-
-    guest_list = []
-    for g in guests[1:]:
-        customer = get_or_create_customer(**g)
-        if customer.user_id != booker.user_id:
-            guest_list.append({'customer_id': customer.user_id})
-
-    return create_online_booking(booker.user_id, selected_rooms, expected_checkin, expected_checkout, guest_list)
-
-
 # 5. Checkout, Pre-payment, Invoice Creation & Electronic Invoice Email
 # Tính tiền phòng của 1 phiếu thuê. Dùng chung cho hóa đơn và số tiền gửi sang MoMo
 # để hai con số luôn giống nhau. Trả về (tổng tiền phòng, danh sách chi tiết từng phòng)
@@ -655,3 +619,15 @@ def stats_occupancy_by_room(month, year):
         pct = round(days / total_all_days * 100, 1) if total_all_days > 0 else 0.0
         result.append((room.room_number, days, pct))
     return result
+
+def auto_cancel_expired_bookings():
+    today_start = datetime.combine(datetime.now().date(), datetime.min.time())
+    expired_bookings = Booking.query.filter(
+        Booking.status == BookingStatus.PENDING_CHECKIN,
+        Booking.expected_checkin < today_start
+    ).all()
+
+    if expired_bookings:
+        for b in expired_bookings:
+            b.status = BookingStatus.EXPIRED_CANCELLED
+        db.session.commit()
