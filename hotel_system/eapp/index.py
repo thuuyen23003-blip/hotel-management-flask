@@ -24,9 +24,7 @@ def load_user(account_id):
 def inject_common_data():
     selected_rooms = session.get('selected_rooms', {})
     return {
-        'selected_summary': {
-            'total_rooms': len(selected_rooms)
-        }
+        'selected_summary': summarize_selected_rooms(selected_rooms)
     }
 
 
@@ -51,14 +49,19 @@ def index():
             err_msg = "Ngày trả phòng phải sau ngày nhận phòng ít nhất 1 đêm!"
             checkout_dt = checkin_dt + timedelta(days=1)
             checkout_str = checkout_dt.strftime('%Y-%m-%d')
+
     except ValueError:
         checkin_dt = datetime.combine(today, datetime.min.time())
         checkout_dt = datetime.combine(tomorrow, datetime.min.time())
         checkin_str = today.strftime('%Y-%m-%d')
         checkout_str = tomorrow.strftime('%Y-%m-%d')
 
+    session['search_checkin'] = checkin_str
+    session['search_checkout'] = checkout_str
+
     rooms = dao.load_rooms(kw=kw, room_type_id=room_type_id,
                            checkin_date=checkin_dt, checkout_date=checkout_dt, page=page)
+
     total_rooms = dao.count_rooms(kw=kw, room_type_id=room_type_id,
                                   checkin_date=checkin_dt, checkout_date=checkout_dt)
     pages = math.ceil(total_rooms / app.config['PAGE_SIZE'])
@@ -156,7 +159,8 @@ def logout_view():
 @app.route('/api/select-room', methods=['POST'])
 def add_selected_room():
     data = request.json
-    room = Room.query.get(int(data.get('id')))  # chỉ lấy id từ trình duyệt, còn lại lấy từ database
+    room = db.session.get(Room, int(data.get('id')))
+
     if not room:
         return jsonify({'err_msg': 'Không tìm thấy phòng!'}), 404
 
@@ -188,10 +192,19 @@ def booking_list():
     selected_rooms = session.get('selected_rooms', {})
     summary = summarize_selected_rooms(selected_rooms)
     regulation = dao.get_current_regulation()
+
+    today = datetime.now().date()
+    tomorrow = today + timedelta(days=1)
+    default_checkin = session.get('search_checkin', today.strftime('%Y-%m-%d'))
+    default_checkout = session.get('search_checkout', tomorrow.strftime('%Y-%m-%d'))
+
     return render_template('booking_list.html',
                            selected_rooms=selected_rooms,
                            selected_summary=summary,
-                           regulation=regulation)
+                           regulation=regulation,
+                           default_checkin=default_checkin,
+                           default_checkout=default_checkout,
+                           today_str=today.strftime('%Y-%m-%d'))
 
 
 @app.route('/api/confirm-booking', methods=['POST'])

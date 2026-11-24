@@ -10,25 +10,74 @@ function selectRoom(id, roomNumber, roomType, basePrice) {
         headers: {
             'Content-Type': 'application/json'
         }
-    }).then(res => res.json()).then(data => {
+    }).then(function (res) {
+        return res.json();
+    }).then(function (data) {
+        let cartCounter = document.getElementById('cartCounter');
+        if (cartCounter) {
+            cartCounter.innerText = data.total_rooms;
+        }
         let counters = document.getElementsByClassName('booking-counter');
-        for (let c of counters) {
-            c.innerText = data.total_rooms;
+        for (let i = 0; i < counters.length; i++) {
+            counters.item(i).innerText = data.total_rooms;
         }
         alert('Đã thêm Phòng ' + roomNumber + ' vào danh sách đặt!');
     });
 }
 
-function removeRoom(roomId) {
-    if (confirm('Bạn chắc chắn muốn bỏ chọn phòng này?')) {
-        fetch('/api/remove-room/' + roomId, {
-            method: 'DELETE'
-        }).then(res => res.json()).then(data => {
-            let row = document.getElementById('room-row-' + roomId);
-            if (row) row.remove();
-            location.reload();
-        });
+function updateBookingTotals() {
+    let checkinEl = document.getElementById('expected_checkin');
+    let checkoutEl = document.getElementById('expected_checkout');
+    if (!checkinEl || !checkoutEl) return;
+
+    let d1 = new Date(checkinEl.value);
+    let d2 = new Date(checkoutEl.value);
+    let nights = 1;
+    if (!isNaN(d1) && !isNaN(d2) && d2 > d1) {
+        nights = Math.round((d2 - d1) / (1000 * 60 * 60 * 24));
     }
+
+    let nightsEl = document.getElementById('stayNightsText');
+    if (nightsEl) nightsEl.innerText = nights;
+
+    let rows = document.querySelectorAll('tr[id^="roomRow_"]');
+    let unitTotal = 0;
+    for (let i = 0; i < rows.length; i++) {
+        let priceText = rows.item(i).children.item(2).innerText.replace(/[^0-9]/g, '');
+        unitTotal += Number(priceText);
+    }
+
+    let total = unitTotal * nights;
+    let deposit = Math.round(total * 0.2);
+
+    let totalEl = document.getElementById('estimatedTotal');
+    let depositEl = document.getElementById('depositAmount');
+    if (totalEl) totalEl.innerText = total.toLocaleString('en-US') + ' VNĐ';
+    if (depositEl) depositEl.innerText = deposit.toLocaleString('en-US') + ' VNĐ';
+}
+
+function removeRoom(roomId) {
+    fetch('/api/remove-room/' + roomId, {
+        method: 'DELETE'
+    }).then(function (res) {
+        return res.json();
+    }).then(function (data) {
+        let cartCounter = document.getElementById('cartCounter');
+        if (cartCounter) cartCounter.innerText = data.total_rooms;
+
+        let selectedCount = document.getElementById('selectedCount');
+        if (selectedCount) selectedCount.innerText = data.total_rooms;
+
+        if (data.total_rooms === 0) {
+            location.reload();
+            return;
+        }
+
+        let row = document.getElementById('roomRow_' + roomId);
+        if (row) row.remove();
+
+        updateBookingTotals();
+    });
 }
 
 function confirmBooking() {
@@ -49,7 +98,9 @@ function confirmBooking() {
         headers: {
             'Content-Type': 'application/json'
         }
-    }).then(res => res.json()).then(data => {
+    }).then(function (res) {
+        return res.json();
+    }).then(function (data) {
         if (data.status === 200) {
             location.href = data.pay_url;
         } else {

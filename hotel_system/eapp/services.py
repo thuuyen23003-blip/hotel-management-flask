@@ -4,6 +4,7 @@ import threading
 import hmac
 import hashlib
 import requests
+from datetime import datetime
 from flask import render_template
 from flask_mail import Message
 from eapp import app, mail
@@ -17,44 +18,73 @@ def build_booking_pdf(booking):
     pdf.add_font("ArialUnicode", "", "C:/Windows/Fonts/arial.ttf")
     pdf.add_font("ArialUnicode", "B", "C:/Windows/Fonts/arialbd.ttf")
 
-    pdf.set_font("ArialUnicode", "B", 15)
-    pdf.cell(0, 9, "AURELIA HOTEL & SUITES", ln=True, align="C")
+    # Dòng tiêu đề đầu trang giống bản in web
     pdf.set_font("ArialUnicode", "B", 13)
-    pdf.cell(0, 9, "PHIẾU ĐẶT PHÒNG (MÃ #" + str(booking.id) + ")", ln=True, align="C")
-    pdf.ln(3)
-
-    room_names = ", ".join([str(d.room.room_number) + " (" + str(d.room.room_type.name) + ")" for d in booking.details])
-    pdf.set_font("ArialUnicode", "", 11)
-    pdf.cell(0, 7, "Phòng đặt: " + room_names, ln=True)
-    pdf.cell(95, 7, "Ngày nhận phòng: " + booking.expected_checkin.strftime("%d/%m/%Y"), ln=False)
-    pdf.cell(95, 7, "Ngày trả phòng: " + booking.expected_checkout.strftime("%d/%m/%Y"), ln=True)
-    pdf.ln(3)
-
-    pdf.set_font("ArialUnicode", "B", 10)
-    pdf.cell(12, 8, "STT", border=1, align="C")
-    pdf.cell(48, 8, "Khách hàng", border=1, align="C")
-    pdf.cell(30, 8, "Loại khách", border=1, align="C")
-    pdf.cell(35, 8, "CMND / CCCD", border=1, align="C")
-    pdf.cell(65, 8, "Địa chỉ", border=1, align="C")
-    pdf.ln()
-
-    cus = booking.customer
-    u = cus.user
+    pdf.cell(110, 7, "AURELIA HOTEL & SUITES", ln=False)
     pdf.set_font("ArialUnicode", "", 10)
-    pdf.cell(12, 8, "1", border=1, align="C")
-    pdf.cell(48, 8, str(u.full_name), border=1)
-    pdf.cell(30, 8, str(cus.customer_type.name), border=1, align="C")
-    pdf.cell(35, 8, str(u.identity_card), border=1, align="C")
-    pdf.cell(65, 8, str(u.address or ""), border=1)
-    pdf.ln(5)
+    created_dt = getattr(booking, 'booking_date', None) or getattr(booking, 'created_date', None) or datetime.now()
+    created_str = created_dt.strftime("%d/%m/%Y %H:%M")
+    pdf.cell(80, 7, "Ngày lập: " + created_str, ln=True, align="R")
 
-    pdf.set_font("ArialUnicode", "B", 11)
-    pdf.cell(0, 7, "Tổng tiền phòng dự kiến: {:,.0f} VNĐ".format(booking.total_estimated), ln=True)
-    pdf.cell(0, 7, "Tiền cọc đã thanh toán (20%): {:,.0f} VNĐ".format(booking.deposit_amount), ln=True)
+    pdf.cell(0, 6, "Mã phiếu đặt: " + str(booking.id), ln=True)
     pdf.ln(4)
 
+    pdf.set_font("ArialUnicode", "B", 16)
+    pdf.cell(0, 10, "PHIẾU ĐẶT PHÒNG", ln=True, align="C")
+    pdf.ln(3)
+
+    # Khung thông tin 2 cột giống bản in web
+    room_names = ", ".join([str(d.room.room_number) for d in booking.details])
+    cus = booking.customer
+    u = cus.user
+
+    pdf.set_font("ArialUnicode", "", 11)
+    pdf.cell(95, 9, "Họ tên người đặt: " + str(u.full_name), border=1)
+    pdf.cell(95, 9, "Phòng đặt: " + room_names, border=1, ln=True)
+    pdf.cell(95, 9, "Ngày nhận phòng: " + booking.expected_checkin.strftime("%d/%m/%Y"), border=1)
+    pdf.cell(95, 9, "Ngày trả phòng: " + booking.expected_checkout.strftime("%d/%m/%Y"), border=1, ln=True)
+    pdf.ln(6)
+
+    # Bảng danh sách khách chuẩn mẫu BM1
+    pdf.set_font("ArialUnicode", "B", 10)
+    pdf.cell(14, 9, "STT", border=1, align="C")
+    pdf.cell(52, 9, "Khách hàng", border=1, align="C")
+    pdf.cell(30, 9, "Loại khách", border=1, align="C")
+    pdf.cell(38, 9, "CMND / CCCD", border=1, align="C")
+    pdf.cell(56, 9, "Địa chỉ", border=1, align="C")
+    pdf.ln()
+
     pdf.set_font("ArialUnicode", "", 10)
-    pdf.multi_cell(0, 6, "Lưu ý: Thời gian nhận phòng không quá 28 ngày kể từ thời điểm đặt phòng. Quý khách vui lòng xuất trình phiếu này kèm CMND/CCCD tại quầy Lễ tân khi nhận phòng.")
+    pdf.cell(14, 9, "1", border=1, align="C")
+    pdf.cell(52, 9, str(u.full_name), border=1)
+    pdf.cell(30, 9, str(cus.customer_type.name), border=1, align="C")
+    pdf.cell(38, 9, str(u.identity_card), border=1, align="C")
+    pdf.cell(56, 9, str(u.address or ""), border=1)
+    pdf.ln(14)
+
+    # Phần tổng tiền và quy định
+    pdf.set_font("ArialUnicode", "B", 11)
+    pdf.cell(0, 8, "Tổng tiền dự kiến: {:,.0f} VNĐ".format(booking.total_estimated), ln=True)
+    pdf.cell(0, 8, "Tiền cọc đã đóng (20%): {:,.0f} VNĐ".format(booking.deposit_amount), ln=True)
+    pdf.ln(3)
+
+    pdf.set_font("ArialUnicode", "", 10)
+    pdf.multi_cell(0, 6, "Quy định: Thời điểm nhận phòng không quá 28 ngày kể từ thời điểm đặt phòng. Quý khách vui lòng xuất trình phiếu này kèm CMND/CCCD tại quầy Lễ tân khi nhận phòng.")
+    pdf.ln(10)
+
+    # 2 cột chữ ký giống hệt bản in web
+    pdf.set_font("ArialUnicode", "B", 11)
+    pdf.cell(95, 7, "Người đặt phòng", align="C")
+    pdf.cell(95, 7, "Khách sạn xác nhận", align="C", ln=True)
+
+    pdf.set_font("ArialUnicode", "", 10)
+    pdf.cell(95, 6, "(Ký và ghi rõ họ tên)", align="C")
+    pdf.cell(95, 6, "(Ký và ghi rõ họ tên)", align="C", ln=True)
+    pdf.ln(18)
+
+    pdf.set_font("ArialUnicode", "B", 11)
+    pdf.cell(95, 7, str(u.full_name), align="C")
+    pdf.cell(95, 7, "Aurelia Hotel & Suites", align="C", ln=True)
 
     return bytes(pdf.output())
 

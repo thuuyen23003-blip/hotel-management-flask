@@ -29,7 +29,7 @@
         <h5 class="offcanvas-title fw-bold">Aurelia Hotel &amp; Suites</h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="offcanvas"></button>
     </div>
-    <div class="offcanvas-body d-flex flex-column justify-content-between">
+        <div class="offcanvas-body d-flex flex-column justify-content-between">
         <div class="list-group list-group-flush">
             <a href="/" class="list-group-item list-group-item-action bg-dark text-white border-secondary">
                 Trang chủ &amp; Tìm phòng
@@ -52,23 +52,28 @@
                     Quản trị hệ thống &amp; Báo cáo
                 </a>
                 {% endif %}
-            {% else %}
-                <a href="/login" class="list-group-item list-group-item-action bg-dark text-white border-secondary">
-                    Đăng nhập hệ thống
-                </a>
-                <a href="/register" class="list-group-item list-group-item-action bg-dark text-white border-secondary">
-                    Đăng ký tài khoản khách hàng
-                </a>
             {% endif %}
         </div>
 
-        <div class="border-top border-secondary pt-3 small text-secondary">
+        <div class="border-top border-secondary pt-3">
             {% if current_user.is_authenticated %}
-                Đang đăng nhập: <strong class="text-white">{{ current_user.user.full_name }}</strong>
-                <a href="/logout" class="btn btn-outline-danger btn-sm w-100 mt-2">Đăng xuất</a>
+                <p class="small text-secondary mb-2">
+                    Đang đăng nhập: <strong class="text-white">{{ current_user.user.full_name }}</strong>
+                </p>
+                <a href="/logout" class="btn btn-outline-danger btn-sm w-100 fw-semibold">
+                    Đăng xuất
+                </a>
             {% else %}
-                Chào mừng Quý khách đến với Aurelia Hotel &amp; Suites!
+                <div class="d-grid gap-2">
+                    <a href="/login" class="btn btn-primary btn-sm fw-semibold">
+                        Đăng nhập hệ thống
+                    </a>
+                    <a href="/register" class="btn btn-outline-light btn-sm fw-semibold">
+                        Đăng ký tài khoản khách hàng
+                    </a>
+                </div>
             {% endif %}
         </div>
     </div>
+
 </div>
